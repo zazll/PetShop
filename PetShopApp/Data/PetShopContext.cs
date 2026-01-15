@@ -30,7 +30,7 @@ public class PetShopContext : DbContext
     {
         if (!optionsBuilder.IsConfigured)
         {
-            optionsBuilder.UseSqlServer("Server=localhost;Database=PetShopDB;User Id=sa;Password=DimpYTYT98!;TrustServerCertificate=True;");
+            optionsBuilder.UseSqlServer("Server=94.156.170.23,1433;Database=PetShopDB;User Id=sa;Password=DimpYTYT98!;TrustServerCertificate=True;");
         }
     }
 
