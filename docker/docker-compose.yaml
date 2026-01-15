@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  mssql:
+    container_name: petshop_mssql
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    user: root
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=DimpYTYT98!
+    ports:
+      - "1433:1433"
+    volumes:
+      - ./data:/var/opt/mssql/data
+    restart: always
