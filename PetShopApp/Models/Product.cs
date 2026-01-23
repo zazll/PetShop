@@ -47,4 +47,5 @@ public class Product
     public virtual Supplier Supplier { get; set; } = null!;
 
     public virtual ICollection<ProductPhoto> Photos { get; set; } = new List<ProductPhoto>();
+    public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 }

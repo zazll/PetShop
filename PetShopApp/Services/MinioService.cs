@@ -10,6 +10,7 @@ public class MinioService
 
     private IMinioClient _client;
     private const string BucketName = "petshop-images";
+    private bool _bucketChecked = false;
 
     private MinioService()
     {
@@ -17,14 +18,14 @@ public class MinioService
         _client = new MinioClient()
             .WithEndpoint("minio.ddedenko.ru")
             .WithCredentials("minioadmin", "DimpYTYT98!")
-            .WithSSL(false) // Try false first if no valid cert, or true if configured
+            .WithSSL(false)
             .Build();
-            
-        InitializeBucket();
     }
 
-    private async void InitializeBucket()
+    private async Task EnsureBucketExists()
     {
+        if (_bucketChecked) return;
+
         try
         {
             var beArgs = new BucketExistsArgs().WithBucket(BucketName);
@@ -34,33 +35,39 @@ public class MinioService
                 var mbArgs = new MakeBucketArgs().WithBucket(BucketName);
                 await _client.MakeBucketAsync(mbArgs);
                 
-                // Set policy to public read (simplified for demo)
-                // In real prod, use Presigned URLs for everything or specific policy
+                // Public policy
                 string policy = $@"{{""Version"":""2012-10-17"",""Statement"":[{{""Effect"":""Allow"",""Principal"":{{""AWS"":[""*""]}},""Action"":[""s3:GetObject""],""Resource"":[""arn:aws:s3:::{BucketName}/*""]}}]}}";
                 var spArgs = new SetPolicyArgs().WithBucket(BucketName).WithPolicy(policy);
                 await _client.SetPolicyAsync(spArgs);
             }
+            _bucketChecked = true;
         }
         catch (Exception ex)
         {
-            // Log error or ignore in demo
+            // In a UI app, we might want to throw or log
             System.Diagnostics.Debug.WriteLine("MinIO Init Error: " + ex.Message);
         }
     }
 
     public async Task<string> UploadFileAsync(string localPath)
     {
+        await EnsureBucketExists(); // Ensure bucket exists before upload
+
         string objectName = Guid.NewGuid().ToString() + Path.GetExtension(localPath);
         
         try
         {
-            var putObjectArgs = new PutObjectArgs()
-                .WithBucket(BucketName)
-                .WithObject(objectName)
-                .WithFileName(localPath)
-                .WithContentType("image/jpeg"); // Simplified
+            using (var fileStream = new FileStream(localPath, FileMode.Open, FileAccess.Read))
+            {
+                var putObjectArgs = new PutObjectArgs()
+                    .WithBucket(BucketName)
+                    .WithObject(objectName)
+                    .WithStreamData(fileStream)
+                    .WithObjectSize(fileStream.Length)
+                    .WithContentType("image/jpeg");
 
-            await _client.PutObjectAsync(putObjectArgs);
+                await _client.PutObjectAsync(putObjectArgs);
+            }
             return objectName;
         }
         catch
@@ -71,8 +78,6 @@ public class MinioService
 
     public string GetFileUrl(string objectName)
     {
-        // Return direct URL assuming public bucket or generate presigned
-        // Since we are setting public policy, direct URL is faster for UI
         return $"http://minio.ddedenko.ru/{BucketName}/{objectName}";
     }
 }

@@ -26,11 +26,9 @@ public class ProductItem : UserControl
         InitializeComponent();
         LoadData();
         
-        // Hover effects
         this.MouseEnter += (s, e) => this.BackColor = Color.FromArgb(240, 248, 240);
         this.MouseLeave += (s, e) => this.BackColor = Color.White;
         
-        // Propagate clicks
         foreach (Control c in this.Controls)
         {
             if (c is not Button) 
@@ -46,13 +44,11 @@ public class ProductItem : UserControl
         this.Margin = new Padding(10);
         this.Padding = new Padding(5);
         
-        // Styles
         var fontPrice = new Font("Segoe UI", 14, FontStyle.Bold);
         var fontOldPrice = new Font("Segoe UI", 9, FontStyle.Strikeout);
         var fontName = new Font("Segoe UI", 10);
         var fontRating = new Font("Segoe UI", 9);
 
-        // Image Container
         _imagePanel = new Panel {
             Dock = DockStyle.Top,
             Height = 200,
@@ -66,10 +62,9 @@ public class ProductItem : UserControl
         };
         _imagePanel.Controls.Add(_photo);
 
-        // Price Section
         _lblPrice = new Label {
             AutoSize = true,
-            ForeColor = Color.FromArgb(46, 204, 113), // Green
+            ForeColor = Color.FromArgb(46, 204, 113), 
             Font = fontPrice,
             Location = new Point(10, 210)
         };
@@ -81,17 +76,15 @@ public class ProductItem : UserControl
             Location = new Point(10, 235) 
         };
 
-        // Name
         _lblName = new Label {
             Location = new Point(10, 240),
-            Size = new Size(220, 45), // 2 lines
+            Size = new Size(220, 45), 
             Font = fontName,
             ForeColor = Color.FromArgb(64, 64, 64),
             TextAlign = ContentAlignment.TopLeft,
             AutoEllipsis = true
         };
 
-        // Rating
         _lblRating = new Label {
             Location = new Point(10, 290),
             AutoSize = true,
@@ -100,7 +93,6 @@ public class ProductItem : UserControl
             Text = "..."
         };
 
-        // Button
         _btnBuy = new RoundedButton {
             Text = "В корзину",
             Width = 200,
@@ -122,7 +114,6 @@ public class ProductItem : UserControl
     {
         _lblName.Text = _product.ProductName;
         
-        // Price
         decimal finalPrice = _product.ProductCost;
         if (_product.ProductDiscountAmount > 0)
         {
@@ -142,7 +133,6 @@ public class ProductItem : UserControl
             _lblPrice.ForeColor = Color.FromArgb(46, 204, 113); 
         }
 
-        // Rating Calculation
         if (_product.Reviews != null && _product.Reviews.Any())
         {
             double avg = _product.Reviews.Average(r => r.Rating);
@@ -156,17 +146,16 @@ public class ProductItem : UserControl
             _lblRating.ForeColor = Color.Gray;
         }
 
-        // Image Logic: MinIO -> Local File -> Placeholder
         string photoPath = "";
         if (_product.Photos != null && _product.Photos.Any())
             photoPath = _product.Photos.First().PhotoPath;
         else if (!string.IsNullOrEmpty(_product.ProductPhoto))
             photoPath = _product.ProductPhoto;
             
-        LoadImageAsync(photoPath);
+        LoadImage(photoPath);
     }
 
-    private async void LoadImageAsync(string path)
+    private void LoadImage(string path)
     {
         if (string.IsNullOrEmpty(path))
         {
@@ -174,7 +163,7 @@ public class ProductItem : UserControl
             return;
         }
 
-        // 1. Try Local (Legacy)
+        // 1. Try Local
         string fullPath = Path.Combine(Application.StartupPath, "Media", path);
         if (File.Exists(fullPath))
         {
@@ -190,9 +179,8 @@ public class ProductItem : UserControl
         // 2. Try MinIO (Remote)
         try
         {
-            // Simple check: if it looks like a Guid or simple name, try MinIO
             string url = MinioService.Instance.GetFileUrl(path);
-            _photo.LoadAsync(url); // LoadAsync is standard PictureBox method for URL
+            _photo.LoadAsync(url);
         }
         catch
         {
