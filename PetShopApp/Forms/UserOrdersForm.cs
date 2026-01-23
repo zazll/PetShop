@@ -88,93 +88,85 @@ public partial class UserOrdersForm : Form
 
                 // Convert to uppercase to be safe, or validate input
 
-                string barcodeText = code.ToUpper().Replace(" ", "-"); 
+                            string barcodeText = code.ToUpper().Replace(" ", "-"); 
 
-    
+                
 
-                using (Bitmap barcodeBitmap = new Bitmap(_pbBarcode.Width, _pbBarcode.Height))
+                            Bitmap barcodeBitmap = new Bitmap(_pbBarcode.Width, _pbBarcode.Height); // Declared outside using
 
-                using (Graphics graphics = Graphics.FromImage(barcodeBitmap))
+                            using (Graphics graphics = Graphics.FromImage(barcodeBitmap))
 
-                {
+                            {
 
-                    graphics.FillRectangle(Brushes.White, 0, 0, barcodeBitmap.Width, barcodeBitmap.Height);
+                                graphics.FillRectangle(Brushes.White, 0, 0, barcodeBitmap.Width, barcodeBitmap.Height);
 
-    
+                
 
-                    int barWidth = 2; // Width of a narrow bar
+                                int barWidth = 2; // Width of a narrow bar
 
-                    int wideBarWidth = barWidth * 3; // Width of a wide bar
+                                int wideBarWidth = barWidth * 3; // Width of a wide bar
 
-                    int height = _pbBarcode.Height - 50; // Leave space for text below
+                                int height = _pbBarcode.Height - 50; // Leave space for text below
 
-    
+                
 
-                    // Each character in Code 39 is 9 modules (5 bars and 4 spaces)
+                                // Each character in Code 39 is 9 modules (5 bars and 4 spaces)
 
-                    // Black bars and white spaces are represented as 1 (wide) or 0 (narrow)
+                                // Black bars and white spaces are represented as 1 (wide) or 0 (narrow)
 
-                    // * is start/stop character
+                                // * is start/stop character
 
-                    string fullCode = "*" + barcodeText + "*";
+                                string fullCode = "*" + barcodeText + "*";
 
-    
+                
 
-                    // Example: Code 39 character patterns (simplified for drawing)
+                                // Example: Code 39 character patterns (simplified for drawing)
 
-                    // This is a basic illustration; a full implementation requires a lookup table for each char
+                                // This is NOT a correct Code 39 pattern. This is a visual approximation.
 
-                    // For simplicity, we'll draw fixed-width bars for now.
+                                // A proper Code 39 library or full implementation would be needed for scannable barcodes.
 
-                    // A proper Code 39 implementation requires a mapping from character to 9-module pattern.
+                                
 
-                    // For a quick visual, we'll just draw alternating black/white for the code length.
+                                int x = 10;
 
-                    
+                                foreach (char c in fullCode)
 
-                    // Let's use a simpler visual approach for now, showing alternaiting bars
+                                {
 
-                    int x = 10;
+                                    for (int i = 0; i < 5; i++) 
 
-                    foreach (char c in fullCode)
+                                    {
 
-                    {
+                                        graphics.FillRectangle(Brushes.Black, x, 10, barWidth, height);
 
-                        // This is NOT a correct Code 39 pattern. This is a visual approximation.
+                                        x += barWidth * 2; 
 
-                        // A proper Code 39 library or full implementation would be needed for scannable barcodes.
+                                    }
 
-                        for (int i = 0; i < 5; i++) // 5 bars per char
+                                    x += wideBarWidth * 2; 
 
-                        {
+                                }
 
-                            graphics.FillRectangle(Brushes.Black, x, 10, barWidth, height);
+                
 
-                            x += barWidth * 2; // space between bars
+                                // Add the text below the barcode
 
-                        }
+                                using (Font font = new Font("Segoe UI", 12))
 
-                        x += wideBarWidth * 2; // space between characters
+                                using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center })
 
-                    }
+                                {
 
-    
+                                    graphics.DrawString(code, font, Brushes.Black, new RectangleF(0, height + 10, barcodeBitmap.Width, 40), sf);
 
-                    // Add the text below the barcode
+                                }
 
-                    using (Font font = new Font("Segoe UI", 12))
+                            }
 
-                    using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center })
+                            _pbBarcode.Image = barcodeBitmap; // Assign here
 
-                    {
-
-                        graphics.DrawString(code, font, Brushes.Black, new RectangleF(0, height + 10, barcodeBitmap.Width, 40), sf);
-
-                    }
-
-                }
-
-                _pbBarcode.Image = barcodeBitmap;
+                
 
             }
 
