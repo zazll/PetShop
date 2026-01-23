@@ -16,7 +16,7 @@ public class MinioService
     {
         // Initialize MinIO Client
         _client = new MinioClient()
-            .WithEndpoint("minio.ddedenko.ru")
+            .WithEndpoint("45.66.228.138:9000")
             .WithCredentials("minioadmin", "DimpYTYT98!")
             .WithSSL(false)
             .Build();
