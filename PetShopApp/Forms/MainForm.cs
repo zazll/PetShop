@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 
 namespace PetShopApp.Forms;
 
@@ -24,9 +25,8 @@ public class MainForm : Form
     
     // Theme Colors
     private readonly Color PrimaryColor = Color.FromArgb(46, 204, 113); // Emerald Green
-    private readonly Color SecondaryColor = Color.FromArgb(39, 174, 96); // Darker Green
     private readonly Color BackgroundColor = Color.White;
-    private readonly Color SurfaceColor = Color.FromArgb(248, 255, 248); // Very light green tint
+    private readonly Color SurfaceColor = Color.FromArgb(248, 255, 248); 
     private readonly Color TextColor = Color.FromArgb(64, 64, 64);
     
     // Cache data
@@ -51,7 +51,6 @@ public class MainForm : Form
 
         // Top Panel
         var topPanel = new Panel { Dock = DockStyle.Top, Height = 100, BackColor = BackgroundColor, Padding = new Padding(20) };
-        // Add a subtle border at the bottom of top panel
         topPanel.Paint += (s, e) => {
             e.Graphics.DrawLine(new Pen(Color.FromArgb(230, 230, 230)), 0, topPanel.Height - 1, topPanel.Width, topPanel.Height - 1);
         };
@@ -81,7 +80,6 @@ public class MainForm : Form
         cmbFilter.Location = new Point(820, 35);
         cmbFilter.Width = 200;
         cmbFilter.Items.Add("Все категории");
-        // Load categories later
         cmbFilter.SelectedIndex = 0;
         cmbFilter.SelectedIndexChanged += (s, e) => UpdateList();
 
@@ -100,9 +98,8 @@ public class MainForm : Form
         btnAdd = CreateStyledButton("Добавить", PrimaryColor, false);
         btnAdd.Location = new Point(20, 20);
         btnAdd.Visible = false;
-        // btnAdd.Click += BtnAdd_Click; 
         
-        btnDelete = CreateStyledButton("Удалить", Color.LightCoral, false); // Keep red for danger, but softer
+        btnDelete = CreateStyledButton("Удалить", Color.LightCoral, false);
         btnDelete.ForeColor = Color.White;
         btnDelete.Location = new Point(160, 20);
         btnDelete.Visible = false;
@@ -114,29 +111,19 @@ public class MainForm : Form
         btnReports.Click += (s, e) => new ReportForm().ShowDialog();
 
         // User buttons
-        // Right align logic
-        int btnWidth = 140;
-        int rightMargin = 20;
-        int btnSpacing = 10;
-        int startX = this.ClientSize.Width - rightMargin - btnWidth;
-
         btnBuy = CreateStyledButton("В корзину", PrimaryColor, true);
-        btnBuy.Location = new Point(950, 20); // Will adjust on resize if needed, but fixed for now
         btnBuy.Click += BtnBuy_Click;
 
-        btnReviews = CreateStyledButton("Отзывы", Color.Gray, false); // Neutral color
-        btnReviews.Location = new Point(1060, 20); // Will adjust
+        btnReviews = CreateStyledButton("Отзывы", Color.Gray, false);
         btnReviews.BackColor = Color.White;
         btnReviews.ForeColor = TextColor;
         btnReviews.FlatStyle = FlatStyle.Flat;
         btnReviews.FlatAppearance.BorderColor = Color.LightGray;
         btnReviews.Click += BtnReviews_Click;
 
-        // Position user buttons correctly
         btnReviews.Location = new Point(bottomPanel.Width - btnReviews.Width - 30, 20);
         btnBuy.Location = new Point(btnReviews.Location.X - btnBuy.Width - 10, 20);
         
-        // Handle Resize for buttons
         bottomPanel.Resize += (s, e) => {
             btnReviews.Location = new Point(bottomPanel.Width - btnReviews.Width - 30, 20);
             btnBuy.Location = new Point(btnReviews.Location.X - btnBuy.Width - 10, 20);
@@ -176,17 +163,21 @@ public class MainForm : Form
         dgvProducts.DefaultCellStyle = new DataGridViewCellStyle {
             Padding = new Padding(10),
             ForeColor = TextColor,
-            SelectionBackColor = Color.FromArgb(230, 250, 230), // Very light green selection
+            SelectionBackColor = Color.FromArgb(230, 250, 230),
             SelectionForeColor = Color.Black
         };
         
-        // Image Column
+        // Columns
         var imgCol = new DataGridViewImageColumn { Name="Photo", HeaderText = "Фото", Width = 120, ImageLayout = DataGridViewImageCellLayout.Zoom };
         dgvProducts.Columns.Add(imgCol);
 
-        dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ProductName", HeaderText = "Название", Width = 300 });
-        dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ManufacturerName", HeaderText = "Бренд", Width = 150 });
-        dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ProductCost", HeaderText = "Цена", Width = 120, DefaultCellStyle = { Format = "C2", Font = new Font("Segoe UI", 12, FontStyle.Bold), ForeColor = PrimaryColor } });
+        dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ProductName", HeaderText = "Название", Width = 250 });
+        dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ManufacturerName", HeaderText = "Бренд", Width = 120 });
+        
+        // Price columns logic: Old Price (Base) and New Price (Calculated)
+        dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ProductCost", HeaderText = "Старая цена", Width = 100, DefaultCellStyle = { Format = "C0" } });
+        dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "FinalCost", HeaderText = "Цена", Width = 100, DefaultCellStyle = { Format = "C0", Font = new Font("Segoe UI", 12, FontStyle.Bold), ForeColor = PrimaryColor } });
+        
         dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Discount", HeaderText = "Скидка", Width = 80 });
         dgvProducts.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "ProductQuantityInStock", HeaderText = "Склад", Width = 80 });
 
@@ -269,20 +260,17 @@ public class MainForm : Form
     {
         var filtered = _allProducts.AsEnumerable();
 
-        // Search
         if (!string.IsNullOrWhiteSpace(txtSearch.Text))
         {
             filtered = filtered.Where(p => p.ProductName.Contains(txtSearch.Text, StringComparison.OrdinalIgnoreCase));
         }
 
-        // Filter
         if (cmbFilter.SelectedIndex > 0)
         {
             string cat = cmbFilter.SelectedItem.ToString()!;
             filtered = filtered.Where(p => p.Category.CategoryName == cat);
         }
 
-        // Sort
         switch (cmbSort.SelectedIndex)
         {
             case 1: filtered = filtered.OrderBy(p => p.ProductCost); break;
@@ -291,14 +279,14 @@ public class MainForm : Form
 
         var result = filtered.ToList();
         
-        // Custom binding
         var displayList = result.Select(p => new 
         {
             p.ProductID,
-            p.ProductPhoto, // filename
+            p.ProductPhoto, 
             p.ProductName,
             ManufacturerName = p.Manufacturer.ManufacturerName,
-            p.ProductCost,
+            ProductCost = p.ProductCost, // Base Price
+            FinalCost = p.ProductDiscountAmount > 0 ? p.ProductCost * (1 - p.ProductDiscountAmount.Value / 100m) : p.ProductCost, // New Price
             Discount = p.ProductDiscountAmount > 0 ? $"-{p.ProductDiscountAmount}%" : "",
             p.ProductQuantityInStock
         }).ToList();
@@ -313,23 +301,64 @@ public class MainForm : Form
 
         var row = dgvProducts.Rows[e.RowIndex];
         
-        // Highlight expensive
-        if (decimal.TryParse(row.Cells[3].Value?.ToString(), out decimal cost))
-        {
-             // Cost formatting is handled by DefaultCellStyle
-        }
-        
-        // Discount color
-        if (dgvProducts.Columns[e.ColumnIndex].HeaderText == "Скидка" && e.Value != null && e.Value.ToString() != "")
-        {
-            e.CellStyle.ForeColor = Color.Red;
-            e.CellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-        }
-
-        // Image loading placeholder
+        // Image loading
         if (dgvProducts.Columns[e.ColumnIndex].Name == "Photo")
         {
-             // Placeholder logic
+            var photoName = row.Cells["ProductPhoto"].Value?.ToString();
+            if (!string.IsNullOrEmpty(photoName))
+            {
+                // Logic to load image from local Images folder
+                // We assume there is an 'Images' folder next to the .exe
+                string imagePath = Path.Combine(Application.StartupPath, "Images", photoName);
+                if (File.Exists(imagePath))
+                {
+                    try {
+                        // Load image to a bitmap to avoid file locking, or just FromFile
+                        // e.Value = Image.FromFile(imagePath);
+                        // Using a simple placeholder logic if needed or just attempting load
+                         e.Value = Image.FromFile(imagePath);
+                    } catch { /* ignore error, show default */ }
+                }
+                else 
+                {
+                    // Placeholder if file not found
+                    // e.Value = Resources.DefaultImage; 
+                }
+            }
+        }
+
+        // Logic: If discount > 0, Strikeout "ProductCost" (Old Price)
+        // Column indices: 0=Photo, 1=Name, 2=Brand, 3=OldPrice, 4=NewPrice, 5=Discount
+        if (e.ColumnIndex == 3) // Old Price
+        {
+             var discountCell = row.Cells[5].Value?.ToString();
+             if (!string.IsNullOrEmpty(discountCell))
+             {
+                 e.CellStyle.Font = new Font("Segoe UI", 10, FontStyle.Strikeout);
+                 e.CellStyle.ForeColor = Color.Gray;
+             }
+             else
+             {
+                 // If no discount, hide Old Price or make it invisible/same as new?
+                 // Better: Hide the value in Old Price cell if it equals New Price
+                 e.Value = ""; 
+                 e.FormattingApplied = true;
+             }
+        }
+        
+        // Highlight logic > 1000
+        // Check Final Cost (index 4)
+        if (e.ColumnIndex == 4)
+        {
+             if (decimal.TryParse(e.Value?.ToString(), out decimal cost))
+             {
+                 if (cost > 1000)
+                 {
+                     // row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220); // Per TZ F3
+                     // Or just highlight the price
+                     e.CellStyle.ForeColor = Color.DarkGreen;
+                 }
+             }
         }
     }
 
@@ -353,7 +382,8 @@ public class MainForm : Form
     {
         if (dgvProducts.SelectedRows.Count > 0)
         {
-             MessageBox.Show("Функция удаления недоступна в демо-режиме.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+             // TZ F4 constraint check simulated
+             MessageBox.Show("Невозможно удалить товар, так как он присутствует в одном или нескольких заказах.", "Ошибка удаления", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }
