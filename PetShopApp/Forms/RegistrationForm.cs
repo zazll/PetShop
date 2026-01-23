@@ -75,7 +75,7 @@ public class RegistrationForm : Form
         txtPassword.PasswordChar = '•';
 
         // Button
-        startY += spacing * 1.5;
+        startY += (int)(spacing * 1.5);
         btnRegister = new Button { 
             Text = "Зарегистрироваться", 
             Location = new Point(startX, startY), 
