@@ -11,10 +11,6 @@ static class Program
         // To customize application configuration such as set high DPI settings or default font,
         // see https://aka.ms/applicationconfiguration.
         ApplicationConfiguration.Initialize();
-        
-        // TEMPORARY MINIO CONNECTIVITY TEST
-        Services.MinioService.Instance.TestMinioConnectivity().Wait();
-
         Application.Run(new Forms.LoginForm());
     }
 }

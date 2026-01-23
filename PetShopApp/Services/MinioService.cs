@@ -11,7 +11,7 @@ public class MinioService
     public static MinioService Instance => _instance ??= new MinioService();
 
     private IMinioClient? _client;
-    private const string BucketName = "petshop-images";
+    private const string BucketName = "petshop-app-images";
     private bool _bucketChecked = false;
 
     private MinioService()
@@ -104,62 +104,5 @@ public class MinioService
             contentType = regKey.GetValue("Content Type").ToString();
         }
         return contentType;
-    }
-
-    // TEMPORARY TEST METHOD
-    public async Task TestMinioConnectivity()
-    {
-        System.Diagnostics.Debug.WriteLine("MinIO TEST: Starting MinIO connectivity test...");
-        if (_client == null)
-        {
-            System.Diagnostics.Debug.WriteLine("MinIO TEST: Client not initialized, test aborted.");
-            return;
-        }
-
-        string testBucketName = "gemini-test-bucket";
-        string testObjectName = "test-file.txt";
-        string testContent = "This is a test file uploaded by Gemini.";
-        byte[] testBytes = System.Text.Encoding.UTF8.GetBytes(testContent);
-
-        try
-        {
-            // 1. Check if test bucket exists
-            var beArgs = new BucketExistsArgs().WithBucket(testBucketName);
-            bool found = await _client.BucketExistsAsync(beArgs);
-            if (!found)
-            {
-                System.Diagnostics.Debug.WriteLine($"MinIO TEST: Test bucket '{testBucketName}' not found. Creating...");
-                var mbArgs = new MakeBucketArgs().WithBucket(testBucketName);
-                await _client.MakeBucketAsync(mbArgs);
-                System.Diagnostics.Debug.WriteLine($"MinIO TEST: Test bucket '{testBucketName}' created.");
-            } else {
-                System.Diagnostics.Debug.WriteLine($"MinIO TEST: Test bucket '{testBucketName}' already exists.");
-            }
-
-            // 2. Set public policy on test bucket
-            string policy = $@"{{""Version"":""2012-10-17"",""Statement"":[{{""Effect"":""Allow"",""Principal"":{{""AWS"":[""*""]}},""Action"":[""s3:GetObject""],""Resource"":[""arn:aws:s3:::{testBucketName}/*""]}}]}}";
-            var spArgs = new SetPolicyArgs().WithBucket(testBucketName).WithPolicy(policy);
-            await _client.SetPolicyAsync(spArgs);
-            System.Diagnostics.Debug.WriteLine($"MinIO TEST: Public policy set on test bucket '{testBucketName}'.");
-
-            // 3. Upload a test file
-            using (var stream = new MemoryStream(testBytes))
-            {
-                var putObjectArgs = new PutObjectArgs()
-                    .WithBucket(testBucketName)
-                    .WithObject(testObjectName)
-                    .WithStreamData(stream)
-                    .WithObjectSize(stream.Length)
-                    .WithContentType("text/plain");
-
-                await _client.PutObjectAsync(putObjectArgs);
-                System.Diagnostics.Debug.WriteLine($"MinIO TEST: Test file '{testObjectName}' uploaded to '{testBucketName}'.");
-            }
-            System.Diagnostics.Debug.WriteLine("MinIO TEST: Connectivity test COMPLETED successfully.");
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"MinIO TEST: Connectivity test FAILED: {ex.Message}");
-        }
     }
 }
