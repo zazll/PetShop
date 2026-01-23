@@ -1,6 +1,8 @@
 using PetShopApp.Models;
 using PetShopApp.Helpers;
+using PetShopApp.Services;
 using System.Drawing.Drawing2D;
+using System.Data;
 
 namespace PetShopApp.Controls;
 
@@ -76,7 +78,7 @@ public class ProductItem : UserControl
             AutoSize = true,
             ForeColor = Color.Gray,
             Font = fontOldPrice,
-            Location = new Point(10, 235) // Will adjust dynamically
+            Location = new Point(10, 235) 
         };
 
         // Name
@@ -95,7 +97,7 @@ public class ProductItem : UserControl
             AutoSize = true,
             Font = fontRating,
             ForeColor = Color.Orange,
-            Text = "★ 4.8"
+            Text = "..."
         };
 
         // Button
@@ -103,7 +105,7 @@ public class ProductItem : UserControl
             Text = "В корзину",
             Width = 200,
             Height = 35,
-            Location = new Point(20, 320), // Manual positioning
+            Location = new Point(20, 330),
             BorderRadius = 15
         };
         _btnBuy.Click += (s, e) => OnBuyClick?.Invoke(this, EventArgs.Empty);
@@ -120,6 +122,7 @@ public class ProductItem : UserControl
     {
         _lblName.Text = _product.ProductName;
         
+        // Price
         decimal finalPrice = _product.ProductCost;
         if (_product.ProductDiscountAmount > 0)
         {
@@ -139,16 +142,40 @@ public class ProductItem : UserControl
             _lblPrice.ForeColor = Color.FromArgb(46, 204, 113); 
         }
 
-        // Image Logic: Check Photos list first
+        // Rating Calculation
+        if (_product.Reviews != null && _product.Reviews.Any())
+        {
+            double avg = _product.Reviews.Average(r => r.Rating);
+            int count = _product.Reviews.Count;
+            _lblRating.Text = $"★ {avg:N1} ({count})";
+            _lblRating.ForeColor = Color.Orange;
+        }
+        else
+        {
+            _lblRating.Text = "Нет отзывов";
+            _lblRating.ForeColor = Color.Gray;
+        }
+
+        // Image Logic: MinIO -> Local File -> Placeholder
         string photoPath = "";
-        
         if (_product.Photos != null && _product.Photos.Any())
             photoPath = _product.Photos.First().PhotoPath;
         else if (!string.IsNullOrEmpty(_product.ProductPhoto))
             photoPath = _product.ProductPhoto;
             
-        string fullPath = Path.Combine(Application.StartupPath, "Media", photoPath);
-        
+        LoadImageAsync(photoPath);
+    }
+
+    private async void LoadImageAsync(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            LoadPlaceholder();
+            return;
+        }
+
+        // 1. Try Local (Legacy)
+        string fullPath = Path.Combine(Application.StartupPath, "Media", path);
         if (File.Exists(fullPath))
         {
             try {
@@ -156,9 +183,18 @@ public class ProductItem : UserControl
                 {
                     _photo.Image = Image.FromStream(stream);
                 }
-            } catch { LoadPlaceholder(); }
+                return;
+            } catch { }
         }
-        else
+
+        // 2. Try MinIO (Remote)
+        try
+        {
+            // Simple check: if it looks like a Guid or simple name, try MinIO
+            string url = MinioService.Instance.GetFileUrl(path);
+            _photo.LoadAsync(url); // LoadAsync is standard PictureBox method for URL
+        }
+        catch
         {
             LoadPlaceholder();
         }
@@ -177,7 +213,6 @@ public class ProductItem : UserControl
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        // Custom painting for rounded border of the Card itself
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using (var pen = new Pen(Color.LightGray, 1))
         using (var path = GetRoundedPath(this.ClientRectangle, 20))
@@ -185,7 +220,6 @@ public class ProductItem : UserControl
             e.Graphics.DrawPath(pen, path);
         }
         
-        // Use region to clip content
         using (var path = GetRoundedPath(this.ClientRectangle, 20))
         {
             this.Region = new Region(path);

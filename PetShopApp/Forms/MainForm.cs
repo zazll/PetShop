@@ -246,11 +246,14 @@ public class MainForm : Form
 
     private void LoadData()
     {
+        // Reload context to get fresh data
         _context = new PetShopContext();
+        
         _allProducts = _context.Products
             .Include(p => p.Manufacturer)
             .Include(p => p.Category)
             .Include(p => p.Photos) // Load photos
+            .Include(p => p.Reviews) // Load reviews for rating
             .ToList();
 
         var categories = _context.ProductCategories.ToList();
