@@ -71,11 +71,37 @@ public class UserProfileForm : Form
         _dgvHistory.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Статус", DataPropertyName = "Status", Width = 120 });
         _dgvHistory.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Код получения", DataPropertyName = "Code", Width = 100 });
 
+        var btnShowBarcode = new Button {
+            Text = "Показать штрихкод",
+            Location = new Point(20, 540),
+            Width = 150,
+            BackColor = Color.LightGray
+        };
+        btnShowBarcode.Click += BtnShowBarcode_Click;
+
         this.Controls.Add(lblTitle);
         this.Controls.Add(lblEmail);
         this.Controls.Add(pnlBalance);
         this.Controls.Add(lblHist);
         this.Controls.Add(_dgvHistory);
+        this.Controls.Add(btnShowBarcode);
+    }
+
+    private void BtnShowBarcode_Click(object? sender, EventArgs e)
+    {
+        if (_dgvHistory.CurrentRow == null)
+        {
+            MessageBox.Show("Пожалуйста, выберите заказ из списка.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var selectedOrder = _dgvHistory.CurrentRow.DataBoundItem as dynamic;
+        if (selectedOrder == null) return;
+
+        int orderId = selectedOrder.OrderId;
+        string orderCode = selectedOrder.Code.ToString();
+
+        new UserOrdersForm(orderId, orderCode).ShowDialog();
     }
 
     private void LoadData()
