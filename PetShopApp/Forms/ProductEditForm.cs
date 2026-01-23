@@ -246,7 +246,24 @@ public class ProductEditForm : Form
             Margin = new Padding(5)
         };
         
-        // ... rest of AddPhotoBox logic (delete button, etc.) ...
+        // Delete button overlay
+        var btnDel = new Button {
+            Text = "X",
+            Size = new Size(25, 25),
+            BackColor = Color.Red,
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Parent = pb,
+            Location = new Point(115, 0)
+        };
+        btnDel.FlatAppearance.BorderSize = 0;
+        btnDel.Click += (s, e) => {
+            _pnlPhotos.Controls.Remove(pb);
+            if (dbPhoto != null) _existingPhotosToDelete.Add(dbPhoto);
+            else _newPhotos.Remove(pathOrName);
+        };
+        pb.Controls.Add(btnDel); // Add the button to the PictureBox controls
+
         _pnlPhotos.Controls.Add(pb);
     }
 
