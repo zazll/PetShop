@@ -16,16 +16,31 @@ public class MinioService
 
     private MinioService()
     {
-        // Initialize MinIO Client
-        _client = new MinioClient()
-            .WithEndpoint("45.66.228.138:9000")
-            .WithCredentials("minioadmin", "DimpYTYT98!")
-            .WithSSL(false)
-            .Build();
+        try
+        {
+            // Initialize MinIO Client
+            _client = new MinioClient()
+                .WithEndpoint("45.66.228.138:9000")
+                .WithCredentials("minioadmin", "DimpYTYT98!")
+                .WithSSL(false)
+                .Build();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"MinIO Client Initialization Error: {ex.Message}");
+            // Depending on the app's needs, you might want to rethrow or set a flag
+            // that MinIO is not operational. For now, just logging.
+            _client = null; // Mark client as unusable
+        }
     }
 
     private async Task EnsureBucketExists()
     {
+        if (_client == null)
+        {
+            System.Diagnostics.Debug.WriteLine("MinIO: Client not initialized, cannot ensure bucket exists.");
+            return;
+        }
         if (_bucketChecked) return;
 
             var beArgs = new BucketExistsArgs().WithBucket(BucketName);
@@ -49,6 +64,11 @@ public class MinioService
 
     public async Task<string> UploadFileAsync(string localPath)
     {
+        if (_client == null)
+        {
+            System.Diagnostics.Debug.WriteLine("MinIO: Client not initialized, cannot upload file.");
+            return string.Empty; // Or throw an exception
+        }
         await EnsureBucketExists(); // User created bucket manually
 
         string objectName = Guid.NewGuid().ToString() + Path.GetExtension(localPath);
