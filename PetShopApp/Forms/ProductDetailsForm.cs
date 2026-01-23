@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Drawing;
 using System.IO;
+using System.Net.Http;
 
 namespace PetShopApp.Forms;
 
@@ -16,10 +17,10 @@ public class ProductDetailsForm : Form
     private PetShopContext _context;
     
     // UI
-    private PictureBox _mainPhoto;
-    private FlowLayoutPanel _thumbsPanel;
-    private FlowLayoutPanel _reviewsPanel;
-    private FlowLayoutPanel _mainContainer;
+    private PictureBox? _mainPhoto;
+    private FlowLayoutPanel? _thumbsPanel;
+    private FlowLayoutPanel? _reviewsPanel;
+    private FlowLayoutPanel? _mainContainer;
     
     public ProductDetailsForm(Product product)
     {
@@ -334,8 +335,21 @@ public class ProductDetailsForm : Form
         // MinIO
         try {
             string url = MinioService.Instance.GetFileUrl(path);
-            pb.LoadAsync(url);
-        } catch { LoadPlaceholder(pb); }
+            using (HttpClient client = new HttpClient())
+            {
+                using (var response = await client.GetAsync(url))
+                {
+                    response.EnsureSuccessStatusCode();
+                    using (var stream = await response.Content.ReadAsStreamAsync())
+                    {
+                        pb.Image = Image.FromStream(stream);
+                    }
+                }
+            }
+        } catch (Exception ex) { 
+            System.Diagnostics.Debug.WriteLine($"Error loading image from MinIO: {ex.Message}");
+            LoadPlaceholder(pb); 
+        }
     }
 
     private void LoadPlaceholder(PictureBox pb)
