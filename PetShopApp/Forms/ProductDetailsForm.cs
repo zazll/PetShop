@@ -26,6 +26,7 @@ public class ProductDetailsForm : Form
     {
         _product = product;
         _context = new PetShopContext();
+        _context.Products.Attach(_product); // Attach the existing product to the new context
         InitializeComponent();
         LoadProductData(); 
     }
