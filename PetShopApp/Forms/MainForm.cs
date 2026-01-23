@@ -328,15 +328,23 @@ public class MainForm : Form
             int minDistance = int.MaxValue;
             string? closestMatch = null;
             
+            System.Diagnostics.Debug.WriteLine($"Did you mean: Search term='{searchTerm}' (no direct matches)");
+            
             // Search through all product names for a suggestion
             foreach (var p in _allProducts)
             {
-                int distance = LevenshteinDistance(searchTerm, p.ProductName.ToLower());
-                // Only suggest if the distance is within a reasonable threshold (e.g., up to 30% of search term length)
-                if (distance < minDistance && distance <= searchTerm.Length / 3) 
+                string productNameLower = p.ProductName.ToLower();
+                int distance = LevenshteinDistance(searchTerm, productNameLower);
+                
+                System.Diagnostics.Debug.WriteLine($"  Comparing with '{productNameLower}': Distance={distance}");
+
+                // Only suggest if the distance is within a reasonable threshold (e.g., 2 for small typos)
+                // Using a fixed threshold for now for debugging, can be made dynamic later
+                if (distance < minDistance && distance <= 2) // For initial testing, a fixed small threshold
                 {
                     minDistance = distance;
                     closestMatch = p.ProductName;
+                    System.Diagnostics.Debug.WriteLine($"    Found closer match: '{closestMatch}' with distance {minDistance}");
                 }
             }
 
@@ -345,6 +353,11 @@ public class MainForm : Form
                 _lblDidYouMean.Text = $"Возможно, вы имели в виду: {closestMatch}?";
                 _lblDidYouMean.Tag = closestMatch; // Store the actual suggested term
                 _lblDidYouMean.Visible = true;
+                System.Diagnostics.Debug.WriteLine($"Did you mean: Suggestion='{closestMatch}'");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("Did you mean: No suitable suggestion found.");
             }
         }
 
