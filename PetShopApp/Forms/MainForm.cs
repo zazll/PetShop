@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 
 namespace PetShopApp.Forms;
 
@@ -16,10 +17,13 @@ public class MainForm : Form
     private ComboBox cmbFilter;
     private TextBox txtSearch;
     private Label lblCount;
+    private Button btnAdd;
     
     // Header controls
     private PictureBox _logoBox;
     private Panel _headerPanel;
+    private Button btnProfile;
+    private Button btnCart;
     
     private PetShopContext _context;
     private List<Product> _allProducts = new();
@@ -33,7 +37,6 @@ public class MainForm : Form
         _context = new PetShopContext();
         InitializeComponent();
         LoadData();
-        // CheckUserRole();
     }
 
     private void InitializeComponent()
@@ -52,7 +55,6 @@ public class MainForm : Form
             BackColor = Color.White, 
             Padding = new Padding(20, 10, 20, 10) 
         };
-        // Bottom border for header
         _headerPanel.Paint += (s, e) => {
             e.Graphics.DrawLine(new Pen(Color.FromArgb(230, 230, 230)), 0, _headerPanel.Height - 1, _headerPanel.Width, _headerPanel.Height - 1);
         };
@@ -64,12 +66,11 @@ public class MainForm : Form
             Location = new Point(20, 10),
             Cursor = Cursors.Hand
         };
-        // Try load logo
         LoadLogo();
         
         // Search Bar (Center)
         var searchPanel = new Panel {
-            Size = new Size(500, 45),
+            Size = new Size(400, 45),
             Location = new Point(250, 18),
             BackColor = Color.FromArgb(46, 204, 113), // Green border
             Padding = new Padding(2)
@@ -84,7 +85,7 @@ public class MainForm : Form
             BorderStyle = BorderStyle.None,
             Font = new Font("Segoe UI", 12),
             Location = new Point(10, 10),
-            Width = 400,
+            Width = 300,
             PlaceholderText = "Искать на PetShop..."
         };
         txtSearch.TextChanged += (s, e) => UpdateList();
@@ -94,7 +95,6 @@ public class MainForm : Form
             Width = 60,
             FlatStyle = FlatStyle.Flat,
             BackColor = PrimaryColor,
-            Image = null, // Could add icon
             Text = "🔍",
             ForeColor = Color.White,
             Cursor = Cursors.Hand
@@ -105,10 +105,13 @@ public class MainForm : Form
         searchInner.Controls.Add(btnSearch);
         searchPanel.Controls.Add(searchInner);
 
-        // Header Buttons (Reports, Login info, etc)
+        // Header Buttons (Right)
+        int btnX = 700;
+        
+        // Reports (Admin)
         var btnReports = new Button {
             Text = "Отчеты",
-            Location = new Point(800, 20),
+            Location = new Point(btnX, 20),
             Height = 40,
             Width = 100,
             FlatStyle = FlatStyle.Flat,
@@ -116,13 +119,60 @@ public class MainForm : Form
             ForeColor = Color.Black
         };
         btnReports.Click += (s, e) => new ReportForm().ShowDialog();
-        if (AuthService.CurrentUser?.Role.RoleName != "Администратор" && AuthService.CurrentUser?.Role.RoleName != "Менеджер")
-            btnReports.Visible = false;
+        
+        // Add Product (Admin)
+        btnAdd = new Button {
+            Text = "+ Товар",
+            Location = new Point(btnX + 110, 20),
+            Height = 40,
+            Width = 100,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.White,
+            ForeColor = Color.Green
+        };
+        btnAdd.Click += (s, e) => {
+             var form = new ProductEditForm();
+             form.FormClosed += (sender, args) => LoadData();
+             form.ShowDialog();
+        };
 
+        if (AuthService.CurrentUser?.Role.RoleName != "Администратор" && AuthService.CurrentUser?.Role.RoleName != "Менеджер")
+        {
+            btnReports.Visible = false;
+            btnAdd.Visible = false;
+        }
+
+        // Cart
+        btnCart = new Button {
+            Text = "Корзина",
+            Location = new Point(1050, 20),
+            Height = 40,
+            Width = 100,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.White,
+            ForeColor = Color.Black
+        };
+        btnCart.Click += (s, e) => new CartForm().ShowDialog();
+
+        // Profile
+        btnProfile = new Button {
+            Text = "Профиль",
+            Location = new Point(1160, 20),
+            Height = 40,
+            Width = 100,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = PrimaryColor,
+            ForeColor = Color.White,
+            Font = new Font("Segoe UI", 9, FontStyle.Bold)
+        };
+        btnProfile.Click += (s, e) => new UserProfileForm().ShowDialog();
 
         _headerPanel.Controls.Add(_logoBox);
         _headerPanel.Controls.Add(searchPanel);
         _headerPanel.Controls.Add(btnReports);
+        _headerPanel.Controls.Add(btnAdd);
+        _headerPanel.Controls.Add(btnCart);
+        _headerPanel.Controls.Add(btnProfile);
         
         // --- Filters Bar ---
         var filterPanel = new Panel {
@@ -179,13 +229,11 @@ public class MainForm : Form
 
     private void LoadLogo()
     {
-        // Logic to try loading "logo.png" or similar from Media
         try {
-            string path = Path.Combine(Application.StartupPath, "Media", "logo_company.png"); // The "cutout" one likely
+            string path = Path.Combine(Application.StartupPath, "Media", "logo_company.png");
             if (File.Exists(path)) 
                 _logoBox.Image = Image.FromFile(path);
             else {
-                // Draw text logo if missing
                 Bitmap bmp = new Bitmap(180, 60);
                 using (Graphics g = Graphics.FromImage(bmp)) {
                     g.Clear(Color.White);
@@ -198,21 +246,27 @@ public class MainForm : Form
 
     private void AdjustGrid()
     {
-        // Optional: Dynamically center content or adjust margins
+        // Responsive logic could go here
     }
 
     private void LoadData()
     {
+        // Reload context to get fresh data
+        _context = new PetShopContext();
+        
         _allProducts = _context.Products
             .Include(p => p.Manufacturer)
             .Include(p => p.Category)
             .ToList();
 
         var categories = _context.ProductCategories.ToList();
+        cmbFilter.Items.Clear();
+        cmbFilter.Items.Add("Все категории");
         foreach (var c in categories)
         {
             cmbFilter.Items.Add(c.CategoryName);
         }
+        cmbFilter.SelectedIndex = 0;
 
         UpdateList();
     }
@@ -246,12 +300,38 @@ public class MainForm : Form
         {
             var card = new ProductItem(p);
             card.OnBuyClick += (s, e) => {
+                CartService.Instance.AddToCart(p);
                 MessageBox.Show($"Товар '{p.ProductName}' добавлен в корзину", "Корзина", MessageBoxButtons.OK, MessageBoxIcon.Information);
             };
             card.OnCardClick += (s, e) => {
-                // Open Details/Reviews
-                new ReviewForm(p).ShowDialog();
+                // Open Details
+                new ProductDetailsForm(p).ShowDialog();
             };
+            
+            // Context menu for Admin to edit/delete
+            if (AuthService.CurrentUser?.Role.RoleName == "Администратор")
+            {
+                var cm = new ContextMenuStrip();
+                cm.Items.Add("Редактировать", null, (s, e) => {
+                    var editForm = new ProductEditForm(p);
+                    editForm.FormClosed += (sender, args) => LoadData();
+                    editForm.ShowDialog();
+                });
+                cm.Items.Add("Удалить", null, (s, e) => {
+                     // Check F4
+                     if (_context.OrderProducts.Any(op => op.ProductID == p.ProductID)) {
+                         MessageBox.Show("Невозможно удалить товар, так как он присутствует в одном или нескольких заказах.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                         return;
+                     }
+                     if (MessageBox.Show("Удалить товар?", "Подтверждение", MessageBoxButtons.YesNo) == DialogResult.Yes) {
+                         _context.Products.Remove(p);
+                         _context.SaveChanges();
+                         LoadData();
+                     }
+                });
+                card.ContextMenuStrip = cm;
+            }
+
             _flowPanel.Controls.Add(card);
         }
 

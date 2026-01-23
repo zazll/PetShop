@@ -25,8 +25,10 @@ public class AppUser
     [Required]
     public string UserPassword { get; set; } = null!;
 
-    public int RoleID { get; set; }
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal Balance { get; set; }
 
+    public int RoleID { get; set; }
     [ForeignKey("RoleID")]
     public virtual Role Role { get; set; } = null!;
 }
