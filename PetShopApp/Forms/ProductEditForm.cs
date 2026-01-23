@@ -35,6 +35,10 @@ public class ProductEditForm : Form
     {
         _product = product;
         _context = new PetShopContext();
+        if (_product != null)
+        {
+            _context.Products.Attach(_product); // Attach the existing product to the new context
+        }
         InitializeComponent();
         LoadDictionaries();
         if (_product != null) LoadProductData();
