@@ -25,12 +25,13 @@ public class PetShopContext : DbContext
     public virtual DbSet<OrderStatus> OrderStatuses { get; set; } = null!;
     public virtual DbSet<OrderHeader> OrderHeaders { get; set; } = null!;
     public virtual DbSet<OrderProduct> OrderProducts { get; set; } = null!;
+    public virtual DbSet<Review> Reviews { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
         {
-            optionsBuilder.UseSqlServer("Server=94.156.170.23,1433;Database=PetShopDB;User Id=sa;Password=DimpYTYT98!;TrustServerCertificate=True;");
+            optionsBuilder.UseSqlServer("Server=localhost,1433;Database=PetShopDB;User Id=sa;Password=A_Very_Strong_Password_123!;TrustServerCertificate=True;");
         }
     }
 
@@ -53,5 +54,6 @@ public class PetShopContext : DbContext
         modelBuilder.Entity<OrderStatus>().ToTable("OrderStatus");
         modelBuilder.Entity<OrderHeader>().ToTable("OrderHeader");
         modelBuilder.Entity<OrderProduct>().ToTable("OrderProduct");
+        modelBuilder.Entity<Review>().ToTable("Review");
     }
 }
