@@ -1,6 +1,0 @@
-/root/gemini/PetShop/PetShopApp/obj/Debug/net6.0-windows/PetShopApp.csproj.AssemblyReference.cache
-/root/gemini/PetShop/PetShopApp/obj/Debug/net6.0-windows/PetShopApp.GeneratedMSBuildEditorConfig.editorconfig
-/root/gemini/PetShop/PetShopApp/obj/Debug/net6.0-windows/PetShopApp.AssemblyInfoInputs.cache
-/root/gemini/PetShop/PetShopApp/obj/Debug/net6.0-windows/PetShopApp.AssemblyInfo.cs
-/root/gemini/PetShop/PetShopApp/obj/Debug/net6.0-windows/PetShopApp.csproj.CoreCompileInputs.cache
-/root/gemini/PetShop/PetShopApp/obj/Debug/net6.0-windows/PetShopApp.sourcelink.json
