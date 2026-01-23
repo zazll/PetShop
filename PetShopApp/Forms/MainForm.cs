@@ -19,6 +19,7 @@ public class MainForm : Form
     private TextBox txtSearch;
     private Label lblCount;
     private Button btnAdd;
+    private Label _lblDidYouMean; // New: "Did you mean" suggestion label
     
     // Header controls
     private PictureBox _logoBox;
@@ -217,9 +218,26 @@ public class MainForm : Form
             ForeColor = Color.Gray
         };
 
+        _lblDidYouMean = new Label {
+            Text = "",
+            Location = new Point(20, 50), // Position below filters bar
+            AutoSize = true,
+            Font = new Font("Segoe UI", 10, FontStyle.Italic),
+            ForeColor = Color.Blue,
+            Cursor = Cursors.Hand,
+            Visible = false // Initially hidden
+        };
+        _lblDidYouMean.Click += (s, e) => {
+            if (!string.IsNullOrEmpty(_lblDidYouMean.Tag as string))
+            {
+                txtSearch.Text = _lblDidYouMean.Tag as string;
+            }
+        };
+
         filterPanel.Controls.Add(cmbSort);
         filterPanel.Controls.Add(cmbFilter);
         filterPanel.Controls.Add(lblCount);
+        filterPanel.Controls.Add(_lblDidYouMean); // Add to filter panel
 
         // --- Main Content (Grid) ---
         _flowPanel = new FlowLayoutPanel {
@@ -302,6 +320,34 @@ public class MainForm : Form
         var result = filtered.ToList();
         lblCount.Text = $"{result.Count} товаров";
 
+        // "Did you mean" logic
+        _lblDidYouMean.Visible = false; // Hide by default
+        if (result.Count == 0 && !string.IsNullOrWhiteSpace(txtSearch.Text))
+        {
+            string searchTerm = txtSearch.Text.ToLower();
+            int minDistance = int.MaxValue;
+            string? closestMatch = null;
+            
+            // Search through all product names for a suggestion
+            foreach (var p in _allProducts)
+            {
+                int distance = LevenshteinDistance(searchTerm, p.ProductName.ToLower());
+                // Only suggest if the distance is within a reasonable threshold (e.g., up to 30% of search term length)
+                if (distance < minDistance && distance <= searchTerm.Length / 3) 
+                {
+                    minDistance = distance;
+                    closestMatch = p.ProductName;
+                }
+            }
+
+            if (closestMatch != null)
+            {
+                _lblDidYouMean.Text = $"Возможно, вы имели в виду: {closestMatch}?";
+                _lblDidYouMean.Tag = closestMatch; // Store the actual suggested term
+                _lblDidYouMean.Visible = true;
+            }
+        }
+
         foreach (var p in result)
         {
             var card = new ProductItem(p);
@@ -359,6 +405,43 @@ public class MainForm : Form
         UpdateCartIndicator(); // Call after list updates
     }
 
+    // Levenshtein Distance implementation for "Did you mean"
+    private int LevenshteinDistance(string s, string t)
+    {
+        if (string.IsNullOrEmpty(s))
+        {
+            if (string.IsNullOrEmpty(t))
+                return 0;
+            return t.Length;
+        }
+
+        if (string.IsNullOrEmpty(t))
+        {
+            return s.Length;
+        }
+
+        int n = s.Length;
+        int m = t.Length;
+        int[,] d = new int[n + 1, m + 1];
+
+        // initialize the top and left of the table
+        for (int i = 0; i <= n; d[i, 0] = i++) ;
+        for (int j = 0; j <= m; d[0, j] = j++) ;
+
+        for (int i = 1; i <= n; i++)
+        {
+            for (int j = 1; j <= m; j++)
+            {
+                int cost = (t[j - 1] == s[i - 1]) ? 0 : 1;
+                int min1 = d[i - 1, j] + 1;
+                int min2 = d[i, j - 1] + 1;
+                int min3 = d[i - 1, j - 1] + cost;
+                d[i, j] = Math.Min(Math.Min(min1, min2), min3);
+            }
+        }
+        return d[n, m];
+    }
+
     private void UpdateCartIndicator()
     {
         int count = CartService.Instance.Items.Sum(x => x.Quantity);
@@ -366,3 +449,4 @@ public class MainForm : Form
         _lblCartCount.Visible = count > 0;
     }
 }
+
