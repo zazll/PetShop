@@ -1,5 +1,6 @@
 using Minio;
 using Minio.DataModel.Args;
+using System.Web;
 
 namespace PetShopApp.Services;
 
@@ -16,7 +17,7 @@ public class MinioService
     {
         // Initialize MinIO Client
         _client = new MinioClient()
-            .WithEndpoint("45.66.228.138:9000")
+            .WithEndpoint("45.66.228.138:9001")
             .WithCredentials("minioadmin", "DimpYTYT98!")
             .WithSSL(false)
             .Build();
@@ -26,12 +27,11 @@ public class MinioService
     {
         if (_bucketChecked) return;
 
-        try
-        {
             var beArgs = new BucketExistsArgs().WithBucket(BucketName);
             bool found = await _client.BucketExistsAsync(beArgs);
             if (!found)
             {
+                System.Diagnostics.Debug.WriteLine($"MinIO: Bucket '{BucketName}' not found. Creating...");
                 var mbArgs = new MakeBucketArgs().WithBucket(BucketName);
                 await _client.MakeBucketAsync(mbArgs);
                 
@@ -39,14 +39,11 @@ public class MinioService
                 string policy = $@"{{""Version"":""2012-10-17"",""Statement"":[{{""Effect"":""Allow"",""Principal"":{{""AWS"":[""*""]}},""Action"":[""s3:GetObject""],""Resource"":[""arn:aws:s3:::{BucketName}/*""]}}]}}";
                 var spArgs = new SetPolicyArgs().WithBucket(BucketName).WithPolicy(policy);
                 await _client.SetPolicyAsync(spArgs);
+                System.Diagnostics.Debug.WriteLine($"MinIO: Bucket '{BucketName}' created and policy set.");
+            } else {
+                System.Diagnostics.Debug.WriteLine($"MinIO: Bucket '{BucketName}' already exists.");
             }
             _bucketChecked = true;
-        }
-        catch (Exception ex)
-        {
-            // In a UI app, we might want to throw or log
-            System.Diagnostics.Debug.WriteLine("MinIO Init Error: " + ex.Message);
-        }
     }
 
     public async Task<string> UploadFileAsync(string localPath)
@@ -63,7 +60,7 @@ public class MinioService
                 .WithObject(objectName)
                 .WithStreamData(fileStream)
                 .WithObjectSize(fileStream.Length)
-                .WithContentType("image/jpeg");
+                .WithContentType(GetContentType(localPath));
 
             await _client.PutObjectAsync(putObjectArgs);
         }
@@ -72,6 +69,16 @@ public class MinioService
 
     public string GetFileUrl(string objectName)
     {
-        return $"http://45.66.228.138:9000/{BucketName}/{objectName}";
+        return $"http://45.66.228.138:9001/{BucketName}/{objectName}";
+    }
+
+    private string GetContentType(string filePath)
+    {
+        string contentType = MimeMapping.GetMimeMapping(filePath);
+        if (string.IsNullOrEmpty(contentType))
+        {
+            return "application/octet-stream"; // Default if cannot determine
+        }
+        return contentType;
     }
 }
