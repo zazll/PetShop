@@ -1,5 +1,6 @@
 using PetShopApp.Services;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 
 namespace PetShopApp.Forms;
 
@@ -11,6 +12,10 @@ public class LoginForm : Form
     private LinkLabel lnkRegister;
     private Label lblStatus;
     private AuthService _authService;
+    
+    // Theme
+    private readonly Color PrimaryColor = Color.FromArgb(46, 204, 113); // Emerald Green
+    private readonly Color TextColor = Color.FromArgb(64, 64, 64);
 
     public LoginForm()
     {
@@ -21,27 +26,87 @@ public class LoginForm : Form
     private void InitializeComponent()
     {
         this.Text = "Вход в систему";
-        this.Size = new Size(400, 350);
+        this.Size = new Size(450, 500);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.BackColor = Color.White;
+        this.FormBorderStyle = FormBorderStyle.FixedSingle;
+        this.MaximizeBox = false;
 
-        var lblTitle = new Label { Text = "PetShop Вход", Font = new Font("Segoe UI", 20, FontStyle.Bold), ForeColor = Color.Purple, Location = new Point(100, 30), AutoSize = true };
+        // Logo/Header
+        var lblTitle = new Label { 
+            Text = "PetShop", 
+            Font = new Font("Segoe UI", 24, FontStyle.Bold), 
+            ForeColor = PrimaryColor, 
+            Location = new Point(0, 40), 
+            AutoSize = false,
+            Width = 450,
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        
+        var lblSubtitle = new Label { 
+            Text = "Вход в аккаунт", 
+            Font = new Font("Segoe UI", 12), 
+            ForeColor = Color.Gray, 
+            Location = new Point(0, 85), 
+            AutoSize = false,
+            Width = 450,
+            TextAlign = ContentAlignment.MiddleCenter
+        };
 
-        var lblLogin = new Label { Text = "Логин (Email):", Location = new Point(50, 100), AutoSize = true };
-        txtLogin = new TextBox { Location = new Point(50, 120), Width = 280, Font = new Font("Segoe UI", 10) };
+        // Inputs
+        int startY = 140;
+        int inputWidth = 300;
+        int startX = (450 - inputWidth) / 2;
 
-        var lblPass = new Label { Text = "Пароль:", Location = new Point(50, 160), AutoSize = true };
-        txtPassword = new TextBox { Location = new Point(50, 180), Width = 280, PasswordChar = '*', Font = new Font("Segoe UI", 10) };
+        var lblLogin = new Label { Text = "Email или телефон", Location = new Point(startX, startY), AutoSize = true, ForeColor = TextColor, Font = new Font("Segoe UI", 10) };
+        txtLogin = CreateStyledTextBox();
+        txtLogin.Location = new Point(startX, startY + 25);
+        txtLogin.Width = inputWidth;
 
-        btnLogin = new Button { Text = "Войти", Location = new Point(50, 230), Width = 280, Height = 40, BackColor = Color.Purple, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+        var lblPass = new Label { Text = "Пароль", Location = new Point(startX, startY + 70), AutoSize = true, ForeColor = TextColor, Font = new Font("Segoe UI", 10) };
+        txtPassword = CreateStyledTextBox();
+        txtPassword.Location = new Point(startX, startY + 95);
+        txtPassword.Width = inputWidth;
+        txtPassword.PasswordChar = '•';
+
+        // Button
+        btnLogin = new Button { 
+            Text = "Войти", 
+            Location = new Point(startX, startY + 150), 
+            Width = inputWidth, 
+            Height = 45, 
+            BackColor = PrimaryColor, 
+            ForeColor = Color.White, 
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 11, FontStyle.Bold),
+            Cursor = Cursors.Hand
+        };
+        btnLogin.FlatAppearance.BorderSize = 0;
         btnLogin.Click += BtnLogin_Click;
 
-        lnkRegister = new LinkLabel { Text = "Нет аккаунта? Зарегистрироваться", Location = new Point(90, 280), AutoSize = true };
+        // Link
+        lnkRegister = new LinkLabel { 
+            Text = "Зарегистрироваться", 
+            Location = new Point(0, startY + 210), 
+            AutoSize = false,
+            Width = 450,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Segoe UI", 10),
+            LinkColor = PrimaryColor,
+            ActiveLinkColor = Color.DarkGreen
+        };
         lnkRegister.LinkClicked += (s, e) => new RegistrationForm().ShowDialog();
 
-        lblStatus = new Label { Location = new Point(50, 210), Width = 280, ForeColor = Color.Red };
+        lblStatus = new Label { 
+            Location = new Point(0, startY + 240), 
+            Width = 450, 
+            TextAlign = ContentAlignment.MiddleCenter,
+            ForeColor = Color.IndianRed,
+            Font = new Font("Segoe UI", 9) 
+        };
 
         this.Controls.Add(lblTitle);
+        this.Controls.Add(lblSubtitle);
         this.Controls.Add(lblLogin);
         this.Controls.Add(txtLogin);
         this.Controls.Add(lblPass);
@@ -49,6 +114,16 @@ public class LoginForm : Form
         this.Controls.Add(btnLogin);
         this.Controls.Add(lnkRegister);
         this.Controls.Add(lblStatus);
+    }
+    
+    private TextBox CreateStyledTextBox()
+    {
+        return new TextBox {
+            BorderStyle = BorderStyle.FixedSingle,
+            Font = new Font("Segoe UI", 11),
+            BackColor = Color.FromArgb(250, 250, 250),
+            Height = 30
+        };
     }
 
     private void BtnLogin_Click(object? sender, EventArgs e)
