@@ -109,14 +109,31 @@ public class CartForm : Form
 
             var lblPrice = new Label { Text = $"{price:N0} ₽", Location = new Point(10, 40), Font = new Font("Segoe UI", 12), ForeColor = Color.Green, AutoSize = true };
 
+            // Quantity Controls
+            var btnMinus = new Button { Text = "-", Location = new Point(400, 25), Size = new Size(30, 30), BackColor = Color.LightGray, FlatStyle = FlatStyle.Flat };
+            var lblQuantity = new Label { Text = item.Quantity.ToString(), Location = new Point(435, 30), Font = new Font("Segoe UI", 10), AutoSize = true };
+            var btnPlus = new Button { Text = "+", Location = new Point(470, 25), Size = new Size(30, 30), BackColor = Color.LightGray, FlatStyle = FlatStyle.Flat };
+
+            btnMinus.Click += (s, e) => {
+                CartService.Instance.DecreaseQuantity(item);
+                LoadItems();
+            };
+            btnPlus.Click += (s, e) => {
+                CartService.Instance.IncreaseQuantity(item);
+                LoadItems();
+            };
+
             var btnRemove = new Button { Text = "Удалить", Location = new Point(600, 25), Size = new Size(80, 30), BackColor = Color.LightCoral, FlatStyle = FlatStyle.Flat, ForeColor = Color.White };
             btnRemove.Click += (s, e) => {
-                CartService.Instance.RemoveFromCart(item);
+                CartService.Instance.RemoveFromCart(item); // Remove the specific CartItem
                 LoadItems();
             };
 
             p.Controls.Add(lblName);
             p.Controls.Add(lblPrice);
+            p.Controls.Add(btnMinus);
+            p.Controls.Add(lblQuantity);
+            p.Controls.Add(btnPlus);
             p.Controls.Add(btnRemove);
             _panelItems.Controls.Add(p);
         }

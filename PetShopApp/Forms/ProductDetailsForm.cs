@@ -242,16 +242,22 @@ public class ProductDetailsForm : Form
 
     private void LoadProductData()
     {
-        // Reload product to ensure tracking
-        _product = _context.Products
-            .Include(p => p.Manufacturer)
-            .Include(p => p.Category)
-            .Include(p => p.Supplier)
-            .Include(p => p.Reviews).ThenInclude(r => r.User)
-            .FirstOrDefault(p => p.ProductID == _product.ProductID) ?? _product;
+        // Create a new context to ensure fresh data load for the product and its reviews
+        using (var refreshContext = new PetShopContext())
+        {
+            _product = refreshContext.Products
+                .Include(p => p.Manufacturer)
+                .Include(p => p.Category)
+                .Include(p => p.Supplier)
+                .Include(p => p.Reviews).ThenInclude(r => r.User)
+                .FirstOrDefault(p => p.ProductID == _product.ProductID) ?? _product;
+        }
 
         // Photos
         _context.Entry(_product).Collection(p => p.Photos).Load();
+
+        // ... (rest of the method unchanged) ...
+
 
         // 1. Images
         _thumbsPanel.Controls.Clear();

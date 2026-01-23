@@ -25,6 +25,7 @@ public class MainForm : Form
     private Panel _headerPanel;
     private Button btnProfile;
     private Button btnCart;
+    private Label _lblCartCount; // New: Cart item count label
     
     private PetShopContext _context;
     private List<Product> _allProducts = new();
@@ -37,6 +38,7 @@ public class MainForm : Form
         _context = new PetShopContext();
         InitializeComponent();
         LoadData();
+        UpdateCartIndicator(); // Initialize cart indicator
     }
 
     private void InitializeComponent()
@@ -144,7 +146,24 @@ public class MainForm : Form
             BackColor = Color.White,
             ForeColor = Color.Black
         };
-        btnCart.Click += (s, e) => new CartForm().ShowDialog();
+        btnCart.Click += (s, e) => {
+             var form = new CartForm();
+             form.FormClosed += (sender, args) => UpdateCartIndicator(); // Update indicator after CartForm closes
+             form.ShowDialog();
+        };
+
+        _lblCartCount = new Label {
+            Text = "0", // Initial count
+            Location = new Point(btnCart.Location.X + btnCart.Width - 15, btnCart.Location.Y + 5), // Position as a badge
+            BackColor = Color.Red,
+            ForeColor = Color.White,
+            Font = new Font("Segoe UI", 8, FontStyle.Bold),
+            Size = new Size(20, 20),
+            TextAlign = ContentAlignment.MiddleCenter,
+            Padding = new Padding(0),
+            Visible = false // Hide if cart is empty
+        };
+        UIHelper.SetRoundedRegion(_lblCartCount, 10); // Make it round
 
         btnProfile = new RoundedButton {
             Text = "Профиль",
@@ -160,6 +179,7 @@ public class MainForm : Form
         _headerPanel.Controls.Add(btnReports);
         _headerPanel.Controls.Add(btnAdd);
         _headerPanel.Controls.Add(btnCart);
+        _headerPanel.Controls.Add(_lblCartCount); // Add the new label to the header
         _headerPanel.Controls.Add(btnProfile);
         
         // --- Filters Bar ---
@@ -288,6 +308,7 @@ public class MainForm : Form
             card.OnBuyClick += (s, e) => {
                 CartService.Instance.AddToCart(p);
                 MessageBox.Show($"Товар '{p.ProductName}' добавлен в корзину");
+                UpdateCartIndicator(); // Update indicator when item added
             };
             card.OnCardClick += (s, e) => {
                 new ProductDetailsForm(p).ShowDialog();
@@ -335,5 +356,13 @@ public class MainForm : Form
         }
 
         _flowPanel.ResumeLayout();
+        UpdateCartIndicator(); // Call after list updates
+    }
+
+    private void UpdateCartIndicator()
+    {
+        int count = CartService.Instance.Items.Sum(x => x.Quantity);
+        _lblCartCount.Text = count.ToString();
+        _lblCartCount.Visible = count > 0;
     }
 }
