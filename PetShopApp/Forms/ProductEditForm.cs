@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using PetShopApp.Controls;
 using PetShopApp.Helpers;
+using PetShopApp.Services;
 
 namespace PetShopApp.Forms;
 
@@ -225,7 +226,7 @@ public class ProductEditForm : Form
         _pnlPhotos.Controls.Add(pb);
     }
 
-    private void BtnSave_Click(object? sender, EventArgs e)
+    private async void BtnSave_Click(object? sender, EventArgs e)
     {
         if (string.IsNullOrWhiteSpace(txtName.Text) || string.IsNullOrWhiteSpace(txtArticle.Text))
         {
@@ -267,24 +268,20 @@ public class ProductEditForm : Form
         // Handle new photos
         foreach (var newPath in _newPhotos)
         {
-            string fileName = Guid.NewGuid().ToString() + Path.GetExtension(newPath);
-            string destPath = Path.Combine(Application.StartupPath, "Media", fileName);
-            
             try {
-                 if (!Directory.Exists(Path.GetDirectoryName(destPath))) Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                 File.Copy(newPath, destPath, true);
+                 string objectName = await MinioService.Instance.UploadFileAsync(newPath); // Upload to MinIO
                  
                  var newPhoto = new ProductPhoto {
-                     PhotoPath = fileName,
+                     PhotoPath = objectName, // Store MinIO object name
                      IsMain = !_product.Photos.Any() && _product.Photos.Count == 0 // First is main
                  };
                  _product.Photos.Add(newPhoto);
                  
                  // Backward compatibility for single photo column
-                 if (string.IsNullOrEmpty(_product.ProductPhoto)) _product.ProductPhoto = fileName;
+                 if (string.IsNullOrEmpty(_product.ProductPhoto)) _product.ProductPhoto = objectName;
                  
             } catch (Exception ex) {
-                MessageBox.Show("Ошибка сохранения фото: " + ex.Message);
+                MessageBox.Show("Ошибка сохранения фото в MinIO: " + ex.Message);
             }
         }
         
