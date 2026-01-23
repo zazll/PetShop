@@ -15,23 +15,31 @@ public class RoundedButton : Button
         this.ForeColor = Color.White;
         this.Font = new Font("Segoe UI", 10, FontStyle.Bold);
         this.Size = new Size(150, 40);
+        this.Paint += RoundedButton_Paint;
     }
 
-    protected override void OnPaint(PaintEventArgs pevent)
+    private void RoundedButton_Paint(object? sender, PaintEventArgs e)
     {
-        // base.OnPaint(pevent); // We draw manually
-        var g = pevent.Graphics;
+        var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
+
+        // Clear background with parent color to avoid artifacts
+        if (this.Parent != null)
+        {
+            using (var brush = new SolidBrush(this.Parent.BackColor))
+            {
+                g.FillRectangle(brush, this.ClientRectangle);
+            }
+        }
 
         var rect = this.ClientRectangle;
         rect.Width--; rect.Height--;
 
         using (var path = GetRoundedPath(rect, BorderRadius))
         using (var brush = new SolidBrush(this.BackColor))
-        using (var pen = new Pen(this.BackColor, 1))
+        // using (var pen = new Pen(this.BackColor, 1)) // No border needed if same color
         {
             g.FillPath(brush, path);
-            g.DrawPath(pen, path);
             
             // Text centering
             var strSize = g.MeasureString(this.Text, this.Font);
@@ -39,6 +47,12 @@ public class RoundedButton : Button
                 (this.Width - strSize.Width) / 2, 
                 (this.Height - strSize.Height) / 2);
         }
+    }
+
+    // Override OnPaintBackground to prevent system drawing the square background
+    protected override void OnPaintBackground(PaintEventArgs pevent)
+    {
+        // Do nothing
     }
 
     private GraphicsPath GetRoundedPath(Rectangle rect, int radius)

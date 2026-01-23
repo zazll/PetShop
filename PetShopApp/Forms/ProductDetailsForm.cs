@@ -211,9 +211,15 @@ public class ProductDetailsForm : Form
 
     private void LoadProductData()
     {
+        // Reload product to ensure it's tracked by THIS context
+        _product = _context.Products
+            .Include(p => p.Manufacturer)
+            .Include(p => p.Category)
+            .Include(p => p.Supplier)
+            .FirstOrDefault(p => p.ProductID == _product.ProductID) ?? _product;
+
         // 1. Photos
         _context.Entry(_product).Collection(p => p.Photos).Load();
-        _context.Entry(_product).Reference(p => p.Supplier).Load(); // Ensure Supplier loaded
 
         _thumbsPanel.Controls.Clear();
         

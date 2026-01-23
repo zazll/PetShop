@@ -37,7 +37,7 @@ public class LoginForm : Form
             Text = "PetShop", 
             Font = new Font("Segoe UI", 24, FontStyle.Bold), 
             ForeColor = PrimaryColor, 
-            Location = new Point(0, 40), 
+            Location = new Point(0, 50), // Moved down from 40 
             AutoSize = false,
             Width = 450,
             TextAlign = ContentAlignment.MiddleCenter
@@ -47,14 +47,14 @@ public class LoginForm : Form
             Text = "Вход в аккаунт", 
             Font = new Font("Segoe UI", 12), 
             ForeColor = Color.Gray, 
-            Location = new Point(0, 85), 
+            Location = new Point(0, 95), // Moved down from 85
             AutoSize = false,
             Width = 450,
             TextAlign = ContentAlignment.MiddleCenter
         };
 
         // Inputs
-        int startY = 140;
+        int startY = 150; // Moved down from 140
         int inputWidth = 300;
         int startX = (450 - inputWidth) / 2;
 
