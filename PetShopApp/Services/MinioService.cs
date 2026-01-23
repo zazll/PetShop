@@ -34,7 +34,7 @@ public class MinioService
         }
     }
 
-    private async Task EnsureBucketExists()
+    public async Task EnsureBucketExists()
     {
         if (_client == null)
         {
