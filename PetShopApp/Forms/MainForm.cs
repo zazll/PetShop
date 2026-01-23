@@ -79,7 +79,7 @@ public class MainForm : Form
         searchPanel.Paint += (s, e) => {
              e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
              using (var pen = new Pen(PrimaryColor, 2))
-             using (var path = GetRoundedPath(searchPanel.ClientRectangle, 20))
+             using (var path = UIHelper.GetRoundedPath(searchPanel.ClientRectangle, 20))
              {
                  e.Graphics.DrawPath(pen, path);
              }
@@ -214,18 +214,7 @@ public class MainForm : Form
         this.Controls.Add(_headerPanel);
     }
     
-    private GraphicsPath GetRoundedPath(Rectangle rect, int radius)
-    {
-        GraphicsPath path = new GraphicsPath();
-        float curveSize = radius * 2F;
-        path.StartFigure();
-        path.AddArc(rect.X, rect.Y, curveSize, curveSize, 180, 90);
-        path.AddArc(rect.Right - curveSize, rect.Y, curveSize, curveSize, 270, 90);
-        path.AddArc(rect.Right - curveSize, rect.Bottom - curveSize, curveSize, curveSize, 0, 90);
-        path.AddArc(rect.X, rect.Bottom - curveSize, curveSize, curveSize, 90, 90);
-        path.CloseFigure();
-        return path;
-    }
+
 
     private void LoadLogo()
     {
@@ -304,27 +293,43 @@ public class MainForm : Form
                 new ProductDetailsForm(p).ShowDialog();
             };
             
-            if (AuthService.CurrentUser?.Role.RoleName == "Администратор")
+            // Context Menu for right click
+            var cm = new ContextMenuStrip();
+            
+            // Analytics (For everyone or just staff? Let's allow staff)
+            if (AuthService.CurrentUser?.Role.RoleName == "Администратор" || AuthService.CurrentUser?.Role.RoleName == "Менеджер")
             {
-                var cm = new ContextMenuStrip();
+                cm.Items.Add("Аналитика товара", null, (s, e) => {
+                    // Show simple analytics for this product
+                    MessageBox.Show($"Продано: {_context.OrderProducts.Where(op => op.ProductID == p.ProductID).Sum(op => op.Quantity)} шт.", $"Аналитика: {p.ProductName}");
+                });
+                
+                cm.Items.Add("-"); // Separator
+                
                 cm.Items.Add("Редактировать", null, (s, e) => {
                     var editForm = new ProductEditForm(p);
                     editForm.FormClosed += (sender, args) => LoadData();
                     editForm.ShowDialog();
                 });
+            }
+
+            if (AuthService.CurrentUser?.Role.RoleName == "Администратор")
+            {
                 cm.Items.Add("Удалить", null, (s, e) => {
+                     // Check F4
                      if (_context.OrderProducts.Any(op => op.ProductID == p.ProductID)) {
-                         MessageBox.Show("Невозможно удалить товар (есть в заказах)");
+                         MessageBox.Show("Невозможно удалить товар, так как он присутствует в одном или нескольких заказах.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                          return;
                      }
-                     if (MessageBox.Show("Удалить товар?", "Подтверждение", MessageBoxButtons.YesNo) == DialogResult.Yes) {
+                     if (MessageBox.Show($"Вы уверены, что хотите удалить '{p.ProductName}'?", "Удаление", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes) {
                          _context.Products.Remove(p);
                          _context.SaveChanges();
                          LoadData();
                      }
                 });
-                card.ContextMenuStrip = cm;
             }
+            
+            if (cm.Items.Count > 0) card.ContextMenuStrip = cm;
 
             _flowPanel.Controls.Add(card);
         }

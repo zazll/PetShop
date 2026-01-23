@@ -15,4 +15,18 @@ public static class UIHelper
         gp.AddArc(bounds.X, bounds.Y + bounds.Height - d, d, d, 90, 90);
         c.Region = new Region(gp);
     }
+    
+    public static GraphicsPath GetRoundedPath(Rectangle rect, int radius)
+    {
+        GraphicsPath path = new GraphicsPath();
+        float curveSize = radius * 2F;
+        path.StartFigure();
+        path.AddArc(rect.X, rect.Y, curveSize, curveSize, 180, 90);
+        path.AddArc(rect.Right - curveSize, rect.Y, curveSize, curveSize, 270, 90);
+        path.AddArc(rect.Right - curveSize, rect.Bottom - curveSize, curveSize, curveSize, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - curveSize, curveSize, curveSize, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
 }
+

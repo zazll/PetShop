@@ -51,29 +51,23 @@ public class MinioService
 
     public async Task<string> UploadFileAsync(string localPath)
     {
-        await EnsureBucketExists(); // Ensure bucket exists before upload
+        await EnsureBucketExists(); // User created bucket manually
 
         string objectName = Guid.NewGuid().ToString() + Path.GetExtension(localPath);
         
-        try
+        // Let exception propagate to UI to see the error
+        using (var fileStream = new FileStream(localPath, FileMode.Open, FileAccess.Read))
         {
-            using (var fileStream = new FileStream(localPath, FileMode.Open, FileAccess.Read))
-            {
-                var putObjectArgs = new PutObjectArgs()
-                    .WithBucket(BucketName)
-                    .WithObject(objectName)
-                    .WithStreamData(fileStream)
-                    .WithObjectSize(fileStream.Length)
-                    .WithContentType("image/jpeg");
+            var putObjectArgs = new PutObjectArgs()
+                .WithBucket(BucketName)
+                .WithObject(objectName)
+                .WithStreamData(fileStream)
+                .WithObjectSize(fileStream.Length)
+                .WithContentType("image/jpeg");
 
-                await _client.PutObjectAsync(putObjectArgs);
-            }
-            return objectName;
+            await _client.PutObjectAsync(putObjectArgs);
         }
-        catch
-        {
-            throw;
-        }
+        return objectName;
     }
 
     public string GetFileUrl(string objectName)
