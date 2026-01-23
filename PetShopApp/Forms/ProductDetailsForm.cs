@@ -321,7 +321,6 @@ public class ProductDetailsForm : Form
     private async void LoadImageIntoPb(string path, PictureBox? pb)
     {
         if (pb == null) return;
-    {
         if (string.IsNullOrEmpty(path)) { LoadPlaceholder(pb); return; }
 
         // Local
