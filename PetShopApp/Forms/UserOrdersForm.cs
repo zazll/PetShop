@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using PetShopApp.Data; // Assuming context might be needed for details
 using PetShopApp.Models; // Assuming models might be needed for details
+using System.Net.Http; // For HttpClient
+using System.IO; // For MemoryStream
 
 namespace PetShopApp.Forms;
 
@@ -40,7 +42,7 @@ public partial class UserOrdersForm : Form
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.ClientSize = new System.Drawing.Size(400, 350); // Smaller window for barcode
         this.Name = "UserOrdersForm";
-        this.Text = $"Заказ №{_orderId} - Штрихкод";
+        this.Text = $"Заказ №{_orderId} - QR-код";
         this.StartPosition = FormStartPosition.CenterScreen;
         this.BackColor = Color.White;
 
@@ -48,14 +50,16 @@ public partial class UserOrdersForm : Form
             Text = $"Код: {_orderCode}",
             Font = new Font("Segoe UI", 18, FontStyle.Bold),
             Location = new Point(20, 20),
-            AutoSize = true
+            AutoSize = true,
+            TextAlign = ContentAlignment.MiddleCenter, // Center text
+            Dock = DockStyle.Top // Dock to top for better positioning
         };
 
         _pbBarcode = new PictureBox {
-            Location = new Point(50, 70),
-            Size = new Size(300, 150),
+            Location = new Point(50, 70), // Will re-center later
+            Size = new Size(300, 200), // Larger for QR code
             SizeMode = PictureBoxSizeMode.Zoom,
-            BackColor = Color.LightGray // Placeholder background
+            BackColor = Color.White // White background for QR
         };
 
         this.Controls.Add(_lblOrderCode);
@@ -64,120 +68,44 @@ public partial class UserOrdersForm : Form
         this.PerformLayout(); // Ensure layout updates
     }
 
-        private void LoadOrderDetails()
-
-        {
-
-            // Here we'll generate the barcode
-
-            GenerateBarcode(_orderCode);
-
-        }
-
-    
-
-        private void GenerateBarcode(string code)
-
-        {
-
-            try
-
-            {
-
-                // Code 39 only supports uppercase letters, numbers, and some symbols (- . $ / + % SPACE)
-
-                // Convert to uppercase to be safe, or validate input
-
-                            string barcodeText = code.ToUpper().Replace(" ", "-"); 
-
-                
-
-                            Bitmap barcodeBitmap = new Bitmap(_pbBarcode.Width, _pbBarcode.Height); // Declared outside using
-
-                            using (Graphics graphics = Graphics.FromImage(barcodeBitmap))
-
-                            {
-
-                                graphics.FillRectangle(Brushes.White, 0, 0, barcodeBitmap.Width, barcodeBitmap.Height);
-
-                
-
-                                int barWidth = 2; // Width of a narrow bar
-
-                                int wideBarWidth = barWidth * 3; // Width of a wide bar
-
-                                int height = _pbBarcode.Height - 50; // Leave space for text below
-
-                
-
-                                // Each character in Code 39 is 9 modules (5 bars and 4 spaces)
-
-                                // Black bars and white spaces are represented as 1 (wide) or 0 (narrow)
-
-                                // * is start/stop character
-
-                                string fullCode = "*" + barcodeText + "*";
-
-                
-
-                                // Example: Code 39 character patterns (simplified for drawing)
-
-                                // This is NOT a correct Code 39 pattern. This is a visual approximation.
-
-                                // A proper Code 39 library or full implementation would be needed for scannable barcodes.
-
-                                
-
-                                int x = 10;
-
-                                foreach (char c in fullCode)
-
-                                {
-
-                                    for (int i = 0; i < 5; i++) 
-
-                                    {
-
-                                        graphics.FillRectangle(Brushes.Black, x, 10, barWidth, height);
-
-                                        x += barWidth * 2; 
-
-                                    }
-
-                                    x += wideBarWidth * 2; 
-
-                                }
-
-                
-
-                                // Add the text below the barcode
-
-                                using (Font font = new Font("Segoe UI", 12))
-
-                                using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center })
-
-                                {
-
-                                    graphics.DrawString(code, font, Brushes.Black, new RectangleF(0, height + 10, barcodeBitmap.Width, 40), sf);
-
-                                }
-
-                            }
-
-                            _pbBarcode.Image = barcodeBitmap; // Assign here
-
-                
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                MessageBox.Show($"Ошибка при генерации штрихкода: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-            }
-
-        }
-
+    private async void LoadOrderDetails()
+    {
+        // Here we'll generate the QR code
+        await GenerateQRCode(_orderCode);
     }
+
+    private async Task GenerateQRCode(string code)
+    {
+        try
+        {
+            string qrCodeUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={Uri.EscapeDataString(code)}";
+
+            using (HttpClient client = new HttpClient())
+            {
+                HttpResponseMessage response = await client.GetAsync(qrCodeUrl);
+                response.EnsureSuccessStatusCode(); // Throws if not a success code
+
+                using (Stream stream = await response.Content.ReadAsStreamAsync())
+                {
+                    _pbBarcode.Image = Image.FromStream(stream);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка при генерации QR-кода: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            _pbBarcode.Image = GetPlaceholderImage(); // Fallback to placeholder
+        }
+    }
+
+    private Image GetPlaceholderImage()
+    {
+        Bitmap bmp = new Bitmap(_pbBarcode.Width, _pbBarcode.Height);
+        using (Graphics g = Graphics.FromImage(bmp)) { 
+            g.Clear(Color.LightGray); 
+            g.DrawString("Нет QR-кода", new Font("Segoe UI", 10), Brushes.DarkGray, new RectangleF(0, 0, _pbBarcode.Width, _pbBarcode.Height), new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+        }
+        return bmp;
+    }
+}
+
