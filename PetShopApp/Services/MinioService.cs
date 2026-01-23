@@ -72,6 +72,6 @@ public class MinioService
 
     public string GetFileUrl(string objectName)
     {
-        return $"http://minio.ddedenko.ru/{BucketName}/{objectName}";
+        return $"http://45.66.228.138:9000/{BucketName}/{objectName}";
     }
 }
