@@ -26,6 +26,7 @@ public class PetShopContext : DbContext
     public virtual DbSet<OrderHeader> OrderHeaders { get; set; } = null!;
     public virtual DbSet<OrderProduct> OrderProducts { get; set; } = null!;
     public virtual DbSet<Review> Reviews { get; set; } = null!;
+    public virtual DbSet<ProductPhoto> ProductPhotos { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

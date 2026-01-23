@@ -1,6 +1,9 @@
 using PetShopApp.Models;
 using PetShopApp.Services;
+using PetShopApp.Controls;
+using PetShopApp.Data;
 using System.Drawing;
+using System.Data;
 
 namespace PetShopApp.Forms;
 
@@ -8,10 +11,13 @@ public class CartForm : Form
 {
     private FlowLayoutPanel _panelItems;
     private Label _lblTotal;
-    private Button _btnCheckout;
+    private RoundedButton _btnCheckout;
+    private ComboBox _cmbPickupPoint;
+    private PetShopContext _context;
 
     public CartForm()
     {
+        _context = new PetShopContext();
         InitializeComponent();
         LoadItems();
     }
@@ -19,7 +25,7 @@ public class CartForm : Form
     private void InitializeComponent()
     {
         this.Text = "Корзина";
-        this.Size = new Size(800, 600);
+        this.Size = new Size(800, 700);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.BackColor = Color.White;
 
@@ -33,32 +39,50 @@ public class CartForm : Form
             WrapContents = false
         };
 
-        var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.WhiteSmoke };
+        var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 130, BackColor = Color.WhiteSmoke };
         
+        // Pickup Point Selector
+        var lblPickup = new Label { Text = "Пункт выдачи:", Location = new Point(20, 15), AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+        _cmbPickupPoint = new ComboBox { Location = new Point(130, 12), Width = 400, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 10) };
+        LoadPickupPoints();
+
         _lblTotal = new Label { 
             Text = "Итого: 0 ₽", 
             Font = new Font("Segoe UI", 16, FontStyle.Bold), 
-            Location = new Point(20, 20), 
+            Location = new Point(20, 60), 
             AutoSize = true 
         };
         
-        _btnCheckout = new Button {
+        _btnCheckout = new RoundedButton {
             Text = "Оформить заказ",
-            Location = new Point(550, 15),
+            Location = new Point(550, 50),
             Size = new Size(200, 50),
-            BackColor = Color.FromArgb(46, 204, 113),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
-            Font = new Font("Segoe UI", 12, FontStyle.Bold)
+            BackColor = Color.FromArgb(46, 204, 113)
         };
         _btnCheckout.Click += BtnCheckout_Click;
 
+        bottomPanel.Controls.Add(lblPickup);
+        bottomPanel.Controls.Add(_cmbPickupPoint);
         bottomPanel.Controls.Add(_lblTotal);
         bottomPanel.Controls.Add(_btnCheckout);
 
         this.Controls.Add(_panelItems);
         this.Controls.Add(bottomPanel);
         this.Controls.Add(title);
+    }
+
+    private void LoadPickupPoints()
+    {
+        var points = _context.PickupPoints.ToList();
+        // Format for display: "City, Street, House"
+        var displayList = points.Select(p => new { 
+            ID = p.PickupPointID, 
+            Address = $"{p.City}, {p.Street}, {p.HouseNumber}" 
+        }).ToList();
+
+        _cmbPickupPoint.DataSource = displayList;
+        _cmbPickupPoint.DisplayMember = "Address";
+        _cmbPickupPoint.ValueMember = "ID";
     }
 
     private void LoadItems()
@@ -104,25 +128,71 @@ public class CartForm : Form
     {
         if (CartService.Instance.GetCount() == 0) return;
         
-        // Check Balance
         if (AuthService.CurrentUser == null) { MessageBox.Show("Авторизуйтесь!"); return; }
 
-        // Here we should ideally check DB balance freshness, but let's trust loaded User object for now or reload it.
-        // Reload user to be sure
-        // ... (Skipping full DB reload for brevity, assuming loaded user is mostly ok or we just check logic)
+        if (_cmbPickupPoint.SelectedItem == null) { MessageBox.Show("Выберите пункт выдачи!"); return; }
         
         decimal total = CartService.Instance.GetTotal();
         
         if (AuthService.CurrentUser.Balance < total)
         {
-            MessageBox.Show($"Недостаточно средств! Ваш баланс: {AuthService.CurrentUser.Balance:N0} ₽. Пополните счет в профиле.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Недостаточно средств! Ваш баланс: {AuthService.CurrentUser.Balance:N0} ₽.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        // Process Order (Mock)
-        MessageBox.Show("Заказ успешно оформлен! Деньги списаны (демо).", "Успех");
+        // --- Create Real Order in DB ---
+        int pickupPointId = (int)_cmbPickupPoint.SelectedValue!;
+        int code = new Random().Next(100, 999);
+        
+        // Assuming OrderStatus ID 1 is "New" (We inserted it in fix_data.sql)
+        int statusId = _context.OrderStatuses.FirstOrDefault(s => s.StatusName == "Новый")?.OrderStatusID ?? 1;
+
+        var order = new OrderHeader {
+            UserID = AuthService.CurrentUser.UserID,
+            OrderStatusID = statusId,
+            PickupPointID = pickupPointId,
+            OrderDate = DateTime.Now,
+            OrderDeliveryDate = DateTime.Now.AddDays(3),
+            OrderPickupCode = code
+        };
+
+        _context.OrderHeaders.Add(order);
+        _context.SaveChanges(); // Get OrderID
+
+        // Add Products
+        foreach (var item in CartService.Instance.Items)
+        {
+            // Simple logic: 1 row per item instance. If multiple same items, they are separate in list
+            // For correct DB, we should group by ID.
+            // But if Primary Key is (OrderID, ProductID), we MUST group!
+        }
+        
+        // Group items for proper insert
+        var groupedItems = CartService.Instance.Items
+            .GroupBy(x => x.ProductID)
+            .Select(g => new { ProductID = g.Key, Count = g.Count() });
+
+        foreach (var g in groupedItems)
+        {
+            var op = new OrderProduct {
+                OrderID = order.OrderID,
+                ProductID = g.ProductID,
+                Quantity = g.Count
+            };
+            _context.OrderProducts.Add(op);
+        }
+
+        // Deduct Balance
+        var user = _context.AppUsers.Find(AuthService.CurrentUser.UserID);
+        if (user != null) user.Balance -= total;
+        
+        _context.SaveChanges();
+
+        // Update local user info
+        AuthService.CurrentUser.Balance = user!.Balance;
+
+        MessageBox.Show($"Заказ №{order.OrderID} успешно оформлен!\nКод получения: {code}\nПункт выдачи: {_cmbPickupPoint.Text}", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
         CartService.Instance.Clear();
-        LoadItems();
-        // In real app: Update DB (Create Order, Decrease Balance, Save Changes)
+        this.Close();
     }
 }

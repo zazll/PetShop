@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using PetShopApp.Models;
+using PetShopApp.Helpers;
 using System.Drawing.Drawing2D;
 
 namespace PetShopApp.Controls;
@@ -12,7 +12,7 @@ public class ProductItem : UserControl
     private Label _lblPrice;
     private Label _lblOldPrice;
     private Label _lblRating;
-    private Button _btnBuy;
+    private RoundedButton _btnBuy;
     private Panel _imagePanel;
 
     public event EventHandler OnBuyClick;
@@ -25,7 +25,7 @@ public class ProductItem : UserControl
         LoadData();
         
         // Hover effects
-        this.MouseEnter += (s, e) => this.BackColor = Color.FromArgb(245, 245, 245);
+        this.MouseEnter += (s, e) => this.BackColor = Color.FromArgb(240, 248, 240);
         this.MouseLeave += (s, e) => this.BackColor = Color.White;
         
         // Propagate clicks
@@ -39,10 +39,10 @@ public class ProductItem : UserControl
 
     private void InitializeComponent()
     {
-        this.Size = new Size(220, 360);
+        this.Size = new Size(240, 380);
         this.BackColor = Color.White;
         this.Margin = new Padding(10);
-        this.Padding = new Padding(10);
+        this.Padding = new Padding(5);
         
         // Styles
         var fontPrice = new Font("Segoe UI", 14, FontStyle.Bold);
@@ -53,7 +53,7 @@ public class ProductItem : UserControl
         // Image Container
         _imagePanel = new Panel {
             Dock = DockStyle.Top,
-            Height = 180,
+            Height = 200,
             BackColor = Color.White,
         };
 
@@ -69,20 +69,20 @@ public class ProductItem : UserControl
             AutoSize = true,
             ForeColor = Color.FromArgb(46, 204, 113), // Green
             Font = fontPrice,
-            Location = new Point(10, 190)
+            Location = new Point(10, 210)
         };
 
         _lblOldPrice = new Label {
             AutoSize = true,
             ForeColor = Color.Gray,
             Font = fontOldPrice,
-            Location = new Point(10, 215) // Will adjust dynamically
+            Location = new Point(10, 235) // Will adjust dynamically
         };
 
         // Name
         _lblName = new Label {
-            Location = new Point(10, 235),
-            Size = new Size(200, 45), // 2 lines
+            Location = new Point(10, 240),
+            Size = new Size(220, 45), // 2 lines
             Font = fontName,
             ForeColor = Color.FromArgb(64, 64, 64),
             TextAlign = ContentAlignment.TopLeft,
@@ -91,25 +91,21 @@ public class ProductItem : UserControl
 
         // Rating
         _lblRating = new Label {
-            Location = new Point(10, 280),
+            Location = new Point(10, 290),
             AutoSize = true,
             Font = fontRating,
             ForeColor = Color.Orange,
-            Text = "★ 4.8 (120 отзывов)" // Mock data or fetch later
+            Text = "★ 4.8"
         };
 
         // Button
-        _btnBuy = new Button {
+        _btnBuy = new RoundedButton {
             Text = "В корзину",
-            Dock = DockStyle.Bottom,
-            Height = 40,
-            BackColor = Color.FromArgb(46, 204, 113),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
-            Font = new Font("Segoe UI", 10, FontStyle.Bold),
-            Cursor = Cursors.Hand
+            Width = 200,
+            Height = 35,
+            Location = new Point(20, 320), // Manual positioning
+            BorderRadius = 15
         };
-        _btnBuy.FlatAppearance.BorderSize = 0;
         _btnBuy.Click += (s, e) => OnBuyClick?.Invoke(this, EventArgs.Empty);
 
         this.Controls.Add(_btnBuy);
@@ -124,7 +120,6 @@ public class ProductItem : UserControl
     {
         _lblName.Text = _product.ProductName;
         
-        // Price Calculation
         decimal finalPrice = _product.ProductCost;
         if (_product.ProductDiscountAmount > 0)
         {
@@ -132,25 +127,32 @@ public class ProductItem : UserControl
             _lblPrice.Text = $"{finalPrice:N0} ₽";
             _lblOldPrice.Text = $"{_product.ProductCost:N0} ₽";
             _lblOldPrice.Visible = true;
-            _lblPrice.ForeColor = Color.FromArgb(231, 76, 60); // Red for discount
+            _lblPrice.ForeColor = Color.FromArgb(231, 76, 60); 
             
-            // Adjust layout
             int priceWidth = TextRenderer.MeasureText(_lblPrice.Text, _lblPrice.Font).Width;
-            _lblOldPrice.Location = new Point(10 + priceWidth + 5, 195);
+            _lblOldPrice.Location = new Point(10 + priceWidth + 10, 215);
         }
         else
         {
             _lblPrice.Text = $"{_product.ProductCost:N0} ₽";
             _lblOldPrice.Visible = false;
-            _lblPrice.ForeColor = Color.FromArgb(46, 204, 113); // Green normal
+            _lblPrice.ForeColor = Color.FromArgb(46, 204, 113); 
         }
 
-        // Image Load
-        string photoPath = Path.Combine(Application.StartupPath, "Media", _product.ProductPhoto ?? "");
-        if (File.Exists(photoPath))
+        // Image Logic: Check Photos list first
+        string photoPath = "";
+        
+        if (_product.Photos != null && _product.Photos.Any())
+            photoPath = _product.Photos.First().PhotoPath;
+        else if (!string.IsNullOrEmpty(_product.ProductPhoto))
+            photoPath = _product.ProductPhoto;
+            
+        string fullPath = Path.Combine(Application.StartupPath, "Media", photoPath);
+        
+        if (File.Exists(fullPath))
         {
             try {
-                using (var stream = new FileStream(photoPath, FileMode.Open, FileAccess.Read))
+                using (var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read))
                 {
                     _photo.Image = Image.FromStream(stream);
                 }
@@ -164,21 +166,43 @@ public class ProductItem : UserControl
 
     private void LoadPlaceholder()
     {
-        // Draw a simple placeholder
         Bitmap bmp = new Bitmap(200, 200);
         using (Graphics g = Graphics.FromImage(bmp))
         {
             g.Clear(Color.WhiteSmoke);
             g.DrawString("Нет фото", new Font("Segoe UI", 10), Brushes.Gray, 60, 90);
-            g.DrawRectangle(Pens.LightGray, 0, 0, 199, 199);
         }
         _photo.Image = bmp;
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        base.OnPaint(e);
-        // Draw border
-        ControlPaint.DrawBorder(e.Graphics, this.ClientRectangle, Color.FromArgb(230,230,230), ButtonBorderStyle.Solid);
+        // Custom painting for rounded border of the Card itself
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using (var pen = new Pen(Color.LightGray, 1))
+        using (var path = GetRoundedPath(this.ClientRectangle, 20))
+        {
+            e.Graphics.DrawPath(pen, path);
+        }
+        
+        // Use region to clip content
+        using (var path = GetRoundedPath(this.ClientRectangle, 20))
+        {
+            this.Region = new Region(path);
+        }
+    }
+    
+    private GraphicsPath GetRoundedPath(Rectangle rect, int radius)
+    {
+        GraphicsPath path = new GraphicsPath();
+        float curveSize = radius * 2F;
+        rect.Width--; rect.Height--; 
+        path.StartFigure();
+        path.AddArc(rect.X, rect.Y, curveSize, curveSize, 180, 90);
+        path.AddArc(rect.Right - curveSize, rect.Y, curveSize, curveSize, 270, 90);
+        path.AddArc(rect.Right - curveSize, rect.Bottom - curveSize, curveSize, curveSize, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - curveSize, curveSize, curveSize, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 }

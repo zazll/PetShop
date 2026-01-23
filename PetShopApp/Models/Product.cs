@@ -45,4 +45,6 @@ public class Product
     public int SupplierID { get; set; }
     [ForeignKey("SupplierID")]
     public virtual Supplier Supplier { get; set; } = null!;
+
+    public virtual ICollection<ProductPhoto> Photos { get; set; } = new List<ProductPhoto>();
 }

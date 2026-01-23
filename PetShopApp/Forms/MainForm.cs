@@ -2,6 +2,7 @@ using PetShopApp.Data;
 using PetShopApp.Models;
 using PetShopApp.Services;
 using PetShopApp.Controls;
+using PetShopApp.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Drawing;
@@ -28,7 +29,6 @@ public class MainForm : Form
     private PetShopContext _context;
     private List<Product> _allProducts = new();
     
-    // Theme
     private readonly Color PrimaryColor = Color.FromArgb(46, 204, 113); 
     private readonly Color BackgroundColor = Color.FromArgb(249, 249, 249); 
 
@@ -42,7 +42,7 @@ public class MainForm : Form
     private void InitializeComponent()
     {
         this.Text = "PetShop Marketplace";
-        this.Size = new Size(1280, 800); // Widescreen
+        this.Size = new Size(1280, 800);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.FormClosed += (s, e) => Application.Exit();
         this.BackColor = BackgroundColor;
@@ -68,65 +68,60 @@ public class MainForm : Form
         };
         LoadLogo();
         
-        // Search Bar (Center)
+        // Search Bar (Center) - Rounded
         var searchPanel = new Panel {
             Size = new Size(400, 45),
             Location = new Point(250, 18),
-            BackColor = Color.FromArgb(46, 204, 113), // Green border
-            Padding = new Padding(2)
+            BackColor = Color.White,
+            Padding = new Padding(1)
         };
-        
-        var searchInner = new Panel {
-            Dock = DockStyle.Fill,
-            BackColor = Color.White
+        // Manual draw for rounded border
+        searchPanel.Paint += (s, e) => {
+             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+             using (var pen = new Pen(PrimaryColor, 2))
+             using (var path = GetRoundedPath(searchPanel.ClientRectangle, 20))
+             {
+                 e.Graphics.DrawPath(pen, path);
+             }
         };
 
         txtSearch = new TextBox {
             BorderStyle = BorderStyle.None,
             Font = new Font("Segoe UI", 12),
-            Location = new Point(10, 10),
-            Width = 300,
+            Location = new Point(15, 12),
+            Width = 330,
             PlaceholderText = "Искать на PetShop..."
         };
         txtSearch.TextChanged += (s, e) => UpdateList();
         
-        var btnSearch = new Button {
-            Dock = DockStyle.Right,
-            Width = 60,
-            FlatStyle = FlatStyle.Flat,
-            BackColor = PrimaryColor,
+        var btnSearch = new Label { // Use label as icon
             Text = "🔍",
-            ForeColor = Color.White,
-            Cursor = Cursors.Hand
+            Location = new Point(360, 10),
+            AutoSize = true,
+            Font = new Font("Segoe UI", 12),
+            Cursor = Cursors.Hand,
+            ForeColor = PrimaryColor
         };
-        btnSearch.FlatAppearance.BorderSize = 0;
 
-        searchInner.Controls.Add(txtSearch);
-        searchInner.Controls.Add(btnSearch);
-        searchPanel.Controls.Add(searchInner);
+        searchPanel.Controls.Add(txtSearch);
+        searchPanel.Controls.Add(btnSearch);
 
         // Header Buttons (Right)
         int btnX = 700;
         
-        // Reports (Admin)
-        var btnReports = new Button {
+        var btnReports = new RoundedButton {
             Text = "Отчеты",
             Location = new Point(btnX, 20),
-            Height = 40,
             Width = 100,
-            FlatStyle = FlatStyle.Flat,
             BackColor = Color.White,
             ForeColor = Color.Black
         };
         btnReports.Click += (s, e) => new ReportForm().ShowDialog();
         
-        // Add Product (Admin)
-        btnAdd = new Button {
+        btnAdd = new RoundedButton {
             Text = "+ Товар",
             Location = new Point(btnX + 110, 20),
-            Height = 40,
             Width = 100,
-            FlatStyle = FlatStyle.Flat,
             BackColor = Color.White,
             ForeColor = Color.Green
         };
@@ -142,28 +137,21 @@ public class MainForm : Form
             btnAdd.Visible = false;
         }
 
-        // Cart
-        btnCart = new Button {
+        btnCart = new RoundedButton {
             Text = "Корзина",
             Location = new Point(1050, 20),
-            Height = 40,
             Width = 100,
-            FlatStyle = FlatStyle.Flat,
             BackColor = Color.White,
             ForeColor = Color.Black
         };
         btnCart.Click += (s, e) => new CartForm().ShowDialog();
 
-        // Profile
-        btnProfile = new Button {
+        btnProfile = new RoundedButton {
             Text = "Профиль",
             Location = new Point(1160, 20),
-            Height = 40,
             Width = 100,
-            FlatStyle = FlatStyle.Flat,
             BackColor = PrimaryColor,
-            ForeColor = Color.White,
-            Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            ForeColor = Color.White
         };
         btnProfile.Click += (s, e) => new UserProfileForm().ShowDialog();
 
@@ -220,11 +208,23 @@ public class MainForm : Form
             Padding = new Padding(20),
             BackColor = BackgroundColor
         };
-        _flowPanel.SizeChanged += (s, e) => AdjustGrid();
 
         this.Controls.Add(_flowPanel);
         this.Controls.Add(filterPanel);
         this.Controls.Add(_headerPanel);
+    }
+    
+    private GraphicsPath GetRoundedPath(Rectangle rect, int radius)
+    {
+        GraphicsPath path = new GraphicsPath();
+        float curveSize = radius * 2F;
+        path.StartFigure();
+        path.AddArc(rect.X, rect.Y, curveSize, curveSize, 180, 90);
+        path.AddArc(rect.Right - curveSize, rect.Y, curveSize, curveSize, 270, 90);
+        path.AddArc(rect.Right - curveSize, rect.Bottom - curveSize, curveSize, curveSize, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - curveSize, curveSize, curveSize, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 
     private void LoadLogo()
@@ -244,19 +244,13 @@ public class MainForm : Form
         } catch {}
     }
 
-    private void AdjustGrid()
-    {
-        // Responsive logic could go here
-    }
-
     private void LoadData()
     {
-        // Reload context to get fresh data
         _context = new PetShopContext();
-        
         _allProducts = _context.Products
             .Include(p => p.Manufacturer)
             .Include(p => p.Category)
+            .Include(p => p.Photos) // Load photos
             .ToList();
 
         var categories = _context.ProductCategories.ToList();
@@ -301,14 +295,12 @@ public class MainForm : Form
             var card = new ProductItem(p);
             card.OnBuyClick += (s, e) => {
                 CartService.Instance.AddToCart(p);
-                MessageBox.Show($"Товар '{p.ProductName}' добавлен в корзину", "Корзина", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show($"Товар '{p.ProductName}' добавлен в корзину");
             };
             card.OnCardClick += (s, e) => {
-                // Open Details
                 new ProductDetailsForm(p).ShowDialog();
             };
             
-            // Context menu for Admin to edit/delete
             if (AuthService.CurrentUser?.Role.RoleName == "Администратор")
             {
                 var cm = new ContextMenuStrip();
@@ -318,9 +310,8 @@ public class MainForm : Form
                     editForm.ShowDialog();
                 });
                 cm.Items.Add("Удалить", null, (s, e) => {
-                     // Check F4
                      if (_context.OrderProducts.Any(op => op.ProductID == p.ProductID)) {
-                         MessageBox.Show("Невозможно удалить товар, так как он присутствует в одном или нескольких заказах.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                         MessageBox.Show("Невозможно удалить товар (есть в заказах)");
                          return;
                      }
                      if (MessageBox.Show("Удалить товар?", "Подтверждение", MessageBoxButtons.YesNo) == DialogResult.Yes) {

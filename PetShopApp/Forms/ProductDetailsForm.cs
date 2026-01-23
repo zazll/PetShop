@@ -1,6 +1,8 @@
 using PetShopApp.Data;
 using PetShopApp.Models;
 using PetShopApp.Services;
+using PetShopApp.Controls;
+using PetShopApp.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Drawing;
@@ -14,46 +16,59 @@ public class ProductDetailsForm : Form
     private PetShopContext _context;
     
     // UI
-    private Panel _mainPanel;
-    private PictureBox _photoBox;
+    private PictureBox _mainPhoto;
+    private FlowLayoutPanel _thumbsPanel;
+    private FlowLayoutPanel _reviewsPanel;
     
     public ProductDetailsForm(Product product)
     {
         _product = product;
         _context = new PetShopContext();
         InitializeComponent();
-        LoadReviews();
+        LoadProductData(); // Load photos and reviews
     }
 
     private void InitializeComponent()
     {
         this.Text = $"{_product.ProductName} — PetShop";
-        this.Size = new Size(1000, 700);
+        this.Size = new Size(1100, 750);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.BackColor = Color.White;
 
         // Split Container
         var split = new SplitContainer {
             Dock = DockStyle.Fill,
-            SplitterDistance = 400,
+            SplitterDistance = 500,
             IsSplitterFixed = true,
-            Orientation = Orientation.Vertical
+            Orientation = Orientation.Vertical,
+            Panel1 = { Padding = new Padding(20) },
+            Panel2 = { Padding = new Padding(20) }
         };
 
-        // --- Left: Image ---
-        _photoBox = new PictureBox {
-            Dock = DockStyle.Fill,
+        // --- Left: Gallery ---
+        var galleryPanel = new Panel { Dock = DockStyle.Fill };
+        
+        _mainPhoto = new PictureBox {
+            Dock = DockStyle.Top,
+            Height = 400,
             SizeMode = PictureBoxSizeMode.Zoom,
-            Padding = new Padding(20)
+            BackColor = Color.White
         };
-        LoadImage();
-        split.Panel1.Controls.Add(_photoBox);
+        
+        _thumbsPanel = new FlowLayoutPanel {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(10),
+            AutoScroll = true
+        };
+
+        galleryPanel.Controls.Add(_thumbsPanel);
+        galleryPanel.Controls.Add(_mainPhoto);
+        split.Panel1.Controls.Add(galleryPanel);
 
         // --- Right: Info ---
         var rightPanel = new FlowLayoutPanel {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.TopDown,
-            Padding = new Padding(20),
             AutoScroll = true,
             WrapContents = false
         };
@@ -69,9 +84,18 @@ public class ProductDetailsForm : Form
         // Name
         var lblName = new Label {
             Text = _product.ProductName,
-            Font = new Font("Segoe UI", 20, FontStyle.Bold),
+            Font = new Font("Segoe UI", 22, FontStyle.Bold),
             AutoSize = true,
             MaximumSize = new Size(500, 0)
+        };
+        
+        // Stock Status
+        var lblStock = new Label {
+            Text = _product.ProductQuantityInStock > 0 ? "В наличии" : "Нет в наличии",
+            ForeColor = _product.ProductQuantityInStock > 0 ? Color.Green : Color.Red,
+            Font = new Font("Segoe UI", 10),
+            Margin = new Padding(0, 5, 0, 10),
+            AutoSize = true
         };
 
         // Price Block
@@ -82,8 +106,8 @@ public class ProductDetailsForm : Form
             finalPrice = _product.ProductCost * (1 - _product.ProductDiscountAmount.Value / 100m);
             var lblFinal = new Label { 
                 Text = $"{finalPrice:N0} ₽", 
-                Font = new Font("Segoe UI", 24, FontStyle.Bold), 
-                ForeColor = Color.Red, 
+                Font = new Font("Segoe UI", 26, FontStyle.Bold), 
+                ForeColor = Color.FromArgb(231, 76, 60), 
                 AutoSize = true, 
                 Location = new Point(0, 0) 
             };
@@ -92,19 +116,16 @@ public class ProductDetailsForm : Form
                 Font = new Font("Segoe UI", 14, FontStyle.Strikeout), 
                 ForeColor = Color.Gray, 
                 AutoSize = true, 
-                Location = new Point(lblFinal.Right + 100, 10) // Approx
+                Location = new Point(200, 15)
             };
             pricePanel.Controls.Add(lblFinal);
             pricePanel.Controls.Add(lblOld);
-            
-            // Fix position after adding
-             lblOld.Location = new Point(200, 10); 
         }
         else
         {
             var lblFinal = new Label { 
                 Text = $"{_product.ProductCost:N0} ₽", 
-                Font = new Font("Segoe UI", 24, FontStyle.Bold), 
+                Font = new Font("Segoe UI", 26, FontStyle.Bold), 
                 ForeColor = Color.FromArgb(46, 204, 113), 
                 AutoSize = true 
             };
@@ -112,14 +133,10 @@ public class ProductDetailsForm : Form
         }
 
         // Buy Button
-        var btnBuy = new Button {
+        var btnBuy = new RoundedButton {
             Text = "Добавить в корзину",
             Size = new Size(250, 50),
-            BackColor = Color.FromArgb(46, 204, 113),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
             Font = new Font("Segoe UI", 12, FontStyle.Bold),
-            Cursor = Cursors.Hand,
             Margin = new Padding(0, 10, 0, 20)
         };
         btnBuy.Click += (s, e) => {
@@ -128,69 +145,109 @@ public class ProductDetailsForm : Form
         };
 
         // Description
-        var lblDescTitle = new Label { Text = "Описание", Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 10, 0, 5) };
+        var lblDescTitle = new Label { Text = "О товаре", Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 10, 0, 5) };
         var lblDesc = new Label { 
-            Text = _product.ProductDescription ?? "Нет описания", 
+            Text = _product.ProductDescription ?? "Описание отсутствует", 
             Font = new Font("Segoe UI", 11), 
             AutoSize = true, 
-            MaximumSize = new Size(500, 0) 
+            MaximumSize = new Size(520, 0),
+            ForeColor = Color.FromArgb(64, 64, 64)
+        };
+        
+        // Supplier Info (Requirement: Full DB usage)
+        var lblSupplier = new Label {
+             Text = $"Поставщик: {_product.Supplier?.SupplierName ?? "Не указан"}",
+             Font = new Font("Segoe UI", 9),
+             ForeColor = Color.Gray,
+             AutoSize = true,
+             Margin = new Padding(0, 10, 0, 0)
         };
 
-        // Reviews Section Container
-        var lblReviewsTitle = new Label { Text = "Отзывы", Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 30, 0, 5) };
+        // Reviews Section
+        var lblReviewsTitle = new Label { Text = "Отзывы покупателей", Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 30, 0, 5) };
         
-        rightPanel.Controls.Add(lblBrand);
-        rightPanel.Controls.Add(lblName);
-        rightPanel.Controls.Add(pricePanel);
-        rightPanel.Controls.Add(btnBuy);
-        rightPanel.Controls.Add(lblDescTitle);
-        rightPanel.Controls.Add(lblDesc);
-        rightPanel.Controls.Add(lblReviewsTitle);
-        
-        // Add container for reviews
         _reviewsPanel = new FlowLayoutPanel {
             AutoSize = true,
             FlowDirection = FlowDirection.TopDown,
             MaximumSize = new Size(540, 0),
             WrapContents = false
         };
-        rightPanel.Controls.Add(_reviewsPanel);
 
-        // Add "Add Review" button
-        var btnAddReview = new Button {
+        var btnAddReview = new RoundedButton {
             Text = "Написать отзыв",
-            Size = new Size(150, 30),
+            Size = new Size(160, 35),
             BackColor = Color.White,
-            FlatStyle = FlatStyle.Flat
+            ForeColor = Color.Black
         };
-        btnAddReview.Click += (s, e) => {
+        // Hack: Reset custom button style for secondary button
+        // Or just use standard button for secondary
+        var btnAddRevSimple = new Button {
+            Text = "Написать отзыв",
+            Size = new Size(160, 35),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.White,
+            Cursor = Cursors.Hand
+        };
+        btnAddRevSimple.Click += (s, e) => {
              new ReviewForm(_product).ShowDialog();
-             LoadReviews(); // Refresh
+             LoadProductData(); // Refresh reviews
         };
-        rightPanel.Controls.Add(btnAddReview);
+
+        rightPanel.Controls.Add(lblBrand);
+        rightPanel.Controls.Add(lblName);
+        rightPanel.Controls.Add(lblStock);
+        rightPanel.Controls.Add(pricePanel);
+        rightPanel.Controls.Add(btnBuy);
+        rightPanel.Controls.Add(lblDescTitle);
+        rightPanel.Controls.Add(lblDesc);
+        rightPanel.Controls.Add(lblSupplier);
+        rightPanel.Controls.Add(lblReviewsTitle);
+        rightPanel.Controls.Add(btnAddRevSimple);
+        rightPanel.Controls.Add(_reviewsPanel);
 
         split.Panel2.Controls.Add(rightPanel);
         this.Controls.Add(split);
     }
-    
-    private FlowLayoutPanel _reviewsPanel;
 
-    private void LoadImage()
+    private void LoadProductData()
     {
-        string photoPath = Path.Combine(Application.StartupPath, "Media", _product.ProductPhoto ?? "");
-        if (File.Exists(photoPath))
-            _photoBox.Image = Image.FromFile(photoPath);
-        else 
+        // 1. Photos
+        _context.Entry(_product).Collection(p => p.Photos).Load();
+        _context.Entry(_product).Reference(p => p.Supplier).Load(); // Ensure Supplier loaded
+
+        _thumbsPanel.Controls.Clear();
+        
+        // Main photo logic
+        string mainPath = "";
+        if (_product.Photos.Any()) 
+            mainPath = Path.Combine(Application.StartupPath, "Media", _product.Photos.First().PhotoPath);
+        else if (!string.IsNullOrEmpty(_product.ProductPhoto))
+            mainPath = Path.Combine(Application.StartupPath, "Media", _product.ProductPhoto);
+            
+        SetMainPhoto(mainPath);
+
+        // Thumbnails
+        var allPhotos = _product.Photos.Select(p => p.PhotoPath).ToList();
+        if (allPhotos.Count == 0 && !string.IsNullOrEmpty(_product.ProductPhoto)) allPhotos.Add(_product.ProductPhoto);
+
+        foreach (var p in allPhotos)
         {
-            // Placeholder
-             Bitmap bmp = new Bitmap(400, 400);
-             using (Graphics g = Graphics.FromImage(bmp)) { g.Clear(Color.WhiteSmoke); g.DrawString("Нет фото", this.Font, Brushes.Gray, 100, 100); }
-             _photoBox.Image = bmp;
-        }
-    }
+            string fullPath = Path.Combine(Application.StartupPath, "Media", p);
+            if (!File.Exists(fullPath)) continue;
 
-    private void LoadReviews()
-    {
+            var pb = new PictureBox {
+                Size = new Size(80, 80),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Image = Image.FromFile(fullPath),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(5),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            pb.Click += (s, e) => SetMainPhoto(fullPath);
+            _thumbsPanel.Controls.Add(pb);
+        }
+
+        // 2. Reviews
         _reviewsPanel.Controls.Clear();
         var reviews = _context.Reviews
             .Include(r => r.User)
@@ -201,24 +258,36 @@ public class ProductDetailsForm : Form
         if (!reviews.Any())
         {
             _reviewsPanel.Controls.Add(new Label { Text = "Отзывов пока нет", AutoSize = true, ForeColor = Color.Gray });
-            return;
         }
-
-        foreach (var r in reviews)
+        else
         {
-            var p = new Panel { Size = new Size(500, 80), BorderStyle = BorderStyle.FixedSingle, Margin = new Padding(0, 0, 0, 10) };
-            var lName = new Label { Text = $"{r.User.UserSurname} {r.User.UserName}", Font = new Font("Segoe UI", 10, FontStyle.Bold), Location = new Point(10, 10), AutoSize = true };
-            var lRating = new Label { Text = $"Оценка: {r.Rating}", ForeColor = Color.Orange, Location = new Point(10, 30), AutoSize = true };
-            var lText = new Label { Text = r.Comment, Location = new Point(10, 50), AutoSize = true, MaximumSize = new Size(480, 0) };
-            
-            p.Controls.Add(lName);
-            p.Controls.Add(lRating);
-            p.Controls.Add(lText);
-            
-            // Adjust height based on text
-            if (lText.Height > 20) p.Height += lText.Height - 15;
+            foreach (var r in reviews)
+            {
+                var p = new Panel { Size = new Size(500, 90), BorderStyle = BorderStyle.FixedSingle, Margin = new Padding(0, 0, 0, 10), BackColor = Color.FromArgb(252,252,252) };
+                UIHelper.SetRoundedRegion(p, 10); // Rounded corners for review card
+                
+                var lName = new Label { Text = $"{r.User.UserSurname} {r.User.UserName}", Font = new Font("Segoe UI", 10, FontStyle.Bold), Location = new Point(10, 10), AutoSize = true };
+                var lRating = new Label { Text = new string('★', r.Rating) + new string('☆', 5-r.Rating), ForeColor = Color.Orange, Location = new Point(10, 30), AutoSize = true, Font = new Font("Segoe UI", 12) };
+                var lText = new Label { Text = r.Comment, Location = new Point(10, 55), AutoSize = true, MaximumSize = new Size(480, 0) };
+                
+                p.Controls.Add(lName);
+                p.Controls.Add(lRating);
+                p.Controls.Add(lText);
+                
+                _reviewsPanel.Controls.Add(p);
+            }
+        }
+    }
 
-            _reviewsPanel.Controls.Add(p);
+    private void SetMainPhoto(string path)
+    {
+        if (File.Exists(path))
+            _mainPhoto.Image = Image.FromFile(path);
+        else 
+        {
+             Bitmap bmp = new Bitmap(400, 400);
+             using (Graphics g = Graphics.FromImage(bmp)) { g.Clear(Color.WhiteSmoke); g.DrawString("Нет фото", this.Font, Brushes.Gray, 150, 180); }
+             _mainPhoto.Image = bmp;
         }
     }
 }

@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Drawing;
 using System.IO;
+using PetShopApp.Controls;
+using PetShopApp.Helpers;
 
 namespace PetShopApp.Forms;
 
@@ -22,8 +24,11 @@ public class ProductEditForm : Form
     private ComboBox cmbManufacturer;
     private ComboBox cmbSupplier;
     private TextBox txtDesc;
-    private PictureBox pbxPhoto;
-    private string? _selectedPhotoPath;
+    
+    // Images
+    private FlowLayoutPanel _pnlPhotos;
+    private List<string> _newPhotos = new();
+    private List<ProductPhoto> _existingPhotosToDelete = new();
 
     public ProductEditForm(Product? product = null)
     {
@@ -37,97 +42,90 @@ public class ProductEditForm : Form
     private void InitializeComponent()
     {
         this.Text = _product == null ? "Добавление товара" : "Редактирование товара";
-        this.Size = new Size(800, 600);
+        this.Size = new Size(900, 700);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.BackColor = Color.White;
 
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20), RowStyles = { new RowStyle(SizeType.AutoSize) } };
-        
         // --- Helper to create labeled inputs ---
-        Control CreateInput(string label, Control input, int y)
+        Control CreateInput(string label, Control input, int x, int y, int w = 300)
         {
-            var l = new Label { Text = label, Location = new Point(20, y), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Gray };
-            input.Location = new Point(20, y + 25);
-            input.Width = 300;
+            var l = new Label { Text = label, Location = new Point(x, y), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Gray };
+            input.Location = new Point(x, y + 25);
+            input.Width = w;
             input.Font = new Font("Segoe UI", 10);
             this.Controls.Add(l);
             this.Controls.Add(input);
-            return input; // return for ref
+            return input; 
         }
 
+        int leftX = 20;
+        int rightX = 350;
         int curY = 20;
         
         // Article
         txtArticle = new TextBox();
-        CreateInput("Артикул:", txtArticle, curY);
+        CreateInput("Артикул:", txtArticle, leftX, curY);
         
         // Name
         txtName = new TextBox(); 
-        var lName = new Label { Text = "Название:", Location = new Point(350, curY), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Gray };
-        txtName.Location = new Point(350, curY + 25);
-        txtName.Width = 400;
-        txtName.Font = new Font("Segoe UI", 10);
-        this.Controls.Add(lName);
-        this.Controls.Add(txtName);
+        CreateInput("Название:", txtName, rightX, curY, 400);
 
         curY += 70;
 
         // Category & Manufacturer
         cmbCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
-        CreateInput("Категория:", cmbCategory, curY);
+        CreateInput("Категория:", cmbCategory, leftX, curY);
 
         cmbManufacturer = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
-        var lMan = new Label { Text = "Производитель:", Location = new Point(350, curY), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Gray };
-        cmbManufacturer.Location = new Point(350, curY + 25);
-        cmbManufacturer.Width = 300;
-        this.Controls.Add(lMan);
-        this.Controls.Add(cmbManufacturer);
+        CreateInput("Производитель:", cmbManufacturer, rightX, curY);
+        
+        // Supplier (Added as per requirement to use full DB)
+        cmbSupplier = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+        CreateInput("Поставщик:", cmbSupplier, rightX + 320, curY, 150);
 
         curY += 70;
 
         // Cost, Discount, Stock
         numCost = new NumericUpDown { Maximum = 1000000, DecimalPlaces = 2 };
-        CreateInput("Цена (руб):", numCost, curY);
+        CreateInput("Цена (руб):", numCost, leftX, curY);
 
         numDiscount = new NumericUpDown { Maximum = 100 };
-        var lDisc = new Label { Text = "Скидка (%):", Location = new Point(350, curY), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Gray };
-        numDiscount.Location = new Point(350, curY + 25);
-        numDiscount.Width = 100;
-        this.Controls.Add(lDisc);
-        this.Controls.Add(numDiscount);
+        CreateInput("Скидка (%):", numDiscount, rightX, curY, 100);
 
         numStock = new NumericUpDown { Maximum = 10000 };
-        var lStock = new Label { Text = "На складе:", Location = new Point(500, curY), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Gray };
-        numStock.Location = new Point(500, curY + 25);
-        numStock.Width = 100;
-        this.Controls.Add(lStock);
-        this.Controls.Add(numStock);
+        CreateInput("На складе:", numStock, rightX + 150, curY, 100);
 
         curY += 70;
 
-        // Image
-        var btnPhoto = new Button { Text = "Выбрать фото...", Location = new Point(20, curY), Width = 150 };
-        btnPhoto.Click += BtnPhoto_Click;
-        this.Controls.Add(btnPhoto);
-
-        pbxPhoto = new PictureBox { Location = new Point(20, curY + 40), Size = new Size(150, 150), BorderStyle = BorderStyle.FixedSingle, SizeMode = PictureBoxSizeMode.Zoom };
-        this.Controls.Add(pbxPhoto);
-
         // Description
-        var lDesc = new Label { Text = "Описание:", Location = new Point(350, curY), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Gray };
-        txtDesc = new TextBox { Location = new Point(350, curY + 25), Width = 400, Height = 150, Multiline = true, ScrollBars = ScrollBars.Vertical };
-        this.Controls.Add(lDesc);
-        this.Controls.Add(txtDesc);
+        txtDesc = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, Height = 100 };
+        CreateInput("Описание:", txtDesc, leftX, curY, 730);
+
+        curY += 140;
+
+        // Photos Section
+        var lblPhotos = new Label { Text = "Фотографии (до 6):", Location = new Point(leftX, curY), AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+        this.Controls.Add(lblPhotos);
+
+        var btnAddPhoto = new RoundedButton { Text = "+ Фото", Width = 100, Height = 30, Location = new Point(leftX + 150, curY - 5) };
+        btnAddPhoto.Click += BtnAddPhoto_Click;
+        this.Controls.Add(btnAddPhoto);
+
+        _pnlPhotos = new FlowLayoutPanel { 
+            Location = new Point(leftX, curY + 30), 
+            Size = new Size(840, 160), 
+            AutoScroll = true, 
+            BackColor = Color.WhiteSmoke,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+        this.Controls.Add(_pnlPhotos);
 
         // Save Button
-        var btnSave = new Button { 
+        var btnSave = new RoundedButton { 
             Text = "Сохранить", 
-            Location = new Point(600, 500), 
-            Size = new Size(150, 40), 
-            BackColor = Color.FromArgb(46, 204, 113), 
-            ForeColor = Color.White, 
-            FlatStyle = FlatStyle.Flat,
-            Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            Location = new Point(700, 600), 
+            Size = new Size(150, 45), 
+            BackColor = Color.FromArgb(46, 204, 113)
         };
         btnSave.Click += BtnSave_Click;
         this.Controls.Add(btnSave);
@@ -143,14 +141,18 @@ public class ProductEditForm : Form
         cmbManufacturer.DisplayMember = "ManufacturerName";
         cmbManufacturer.ValueMember = "ManufacturerID";
         
-        // Default Supplier (hidden for simplicity in this demo)
-        // In real app, add ComboBox for Supplier too
+        cmbSupplier.DataSource = _context.Suppliers.ToList();
+        cmbSupplier.DisplayMember = "SupplierName";
+        cmbSupplier.ValueMember = "SupplierID";
     }
 
     private void LoadProductData()
     {
         if (_product == null) return;
         
+        // Eager load photos
+        _context.Entry(_product).Collection(p => p.Photos).Load();
+
         txtArticle.Text = _product.ProductArticleNumber;
         txtName.Text = _product.ProductName;
         txtDesc.Text = _product.ProductDescription;
@@ -160,25 +162,67 @@ public class ProductEditForm : Form
         
         cmbCategory.SelectedValue = _product.CategoryID;
         cmbManufacturer.SelectedValue = _product.ManufacturerID;
+        cmbSupplier.SelectedValue = _product.SupplierID;
 
-        if (!string.IsNullOrEmpty(_product.ProductPhoto))
+        // Load existing photos
+        foreach (var p in _product.Photos)
         {
-            string path = Path.Combine(Application.StartupPath, "Media", _product.ProductPhoto);
-            if (File.Exists(path)) pbxPhoto.Image = Image.FromFile(path);
+            AddPhotoBox(p.PhotoPath, p);
         }
     }
 
-    private void BtnPhoto_Click(object? sender, EventArgs e)
+    private void BtnAddPhoto_Click(object? sender, EventArgs e)
     {
+        // Limit 6 logic
+        if (_pnlPhotos.Controls.Count >= 6)
+        {
+            MessageBox.Show("Максимум 6 фотографий");
+            return;
+        }
+
         using (var ofd = new OpenFileDialog())
         {
             ofd.Filter = "Images|*.jpg;*.jpeg;*.png";
             if (ofd.ShowDialog() == DialogResult.OK)
             {
-                pbxPhoto.Image = Image.FromFile(ofd.FileName);
-                _selectedPhotoPath = ofd.FileName;
+                _newPhotos.Add(ofd.FileName);
+                AddPhotoBox(ofd.FileName, null);
             }
         }
+    }
+
+    private void AddPhotoBox(string pathOrName, ProductPhoto? dbPhoto)
+    {
+        string fullPath = dbPhoto == null ? pathOrName : Path.Combine(Application.StartupPath, "Media", pathOrName);
+        
+        if (!File.Exists(fullPath)) return;
+
+        var pb = new PictureBox {
+            Size = new Size(140, 140),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Image = Image.FromFile(fullPath),
+            BackColor = Color.White,
+            Margin = new Padding(5)
+        };
+
+        // Delete button overlay
+        var btnDel = new Button {
+            Text = "X",
+            Size = new Size(25, 25),
+            BackColor = Color.Red,
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Parent = pb,
+            Location = new Point(115, 0)
+        };
+        btnDel.FlatAppearance.BorderSize = 0;
+        btnDel.Click += (s, e) => {
+            _pnlPhotos.Controls.Remove(pb);
+            if (dbPhoto != null) _existingPhotosToDelete.Add(dbPhoto);
+            else _newPhotos.Remove(pathOrName);
+        };
+
+        _pnlPhotos.Controls.Add(pb);
     }
 
     private void BtnSave_Click(object? sender, EventArgs e)
@@ -194,14 +238,13 @@ public class ProductEditForm : Form
             _product = new Product();
             _context.Products.Add(_product);
             
-            // Default fields required by DB
+            // Defaults
             _product.UnitDescription = "шт";
-            _product.SupplierID = _context.Suppliers.First().SupplierID; // Take first available
-            _product.AnimalTypeID = _context.AnimalTypes.First().AnimalTypeID; // Take first available
+            _product.AnimalTypeID = _context.AnimalTypes.First().AnimalTypeID; 
         }
         else
         {
-            _context.Attach(_product); // Re-attach if lost context (though we keep _context alive)
+            _context.Attach(_product); 
         }
 
         _product.ProductArticleNumber = txtArticle.Text;
@@ -213,20 +256,43 @@ public class ProductEditForm : Form
         
         _product.CategoryID = (int)cmbCategory.SelectedValue!;
         _product.ManufacturerID = (int)cmbManufacturer.SelectedValue!;
+        _product.SupplierID = (int)cmbSupplier.SelectedValue!;
 
-        // Save Image
-        if (_selectedPhotoPath != null)
+        // Handle deletions
+        if (_existingPhotosToDelete.Any())
         {
-            string fileName = Guid.NewGuid().ToString() + Path.GetExtension(_selectedPhotoPath);
+            _context.ProductPhotos.RemoveRange(_existingPhotosToDelete);
+        }
+
+        // Handle new photos
+        foreach (var newPath in _newPhotos)
+        {
+            string fileName = Guid.NewGuid().ToString() + Path.GetExtension(newPath);
             string destPath = Path.Combine(Application.StartupPath, "Media", fileName);
+            
             try {
-                if (!Directory.Exists(Path.GetDirectoryName(destPath))) Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                File.Copy(_selectedPhotoPath, destPath, true);
-                _product.ProductPhoto = fileName;
+                 if (!Directory.Exists(Path.GetDirectoryName(destPath))) Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                 File.Copy(newPath, destPath, true);
+                 
+                 var newPhoto = new ProductPhoto {
+                     PhotoPath = fileName,
+                     IsMain = !_product.Photos.Any() && _product.Photos.Count == 0 // First is main
+                 };
+                 _product.Photos.Add(newPhoto);
+                 
+                 // Backward compatibility for single photo column
+                 if (string.IsNullOrEmpty(_product.ProductPhoto)) _product.ProductPhoto = fileName;
+                 
             } catch (Exception ex) {
                 MessageBox.Show("Ошибка сохранения фото: " + ex.Message);
             }
         }
+        
+        // Update main photo ref if deleted
+        if (_product.Photos.Any()) 
+            _product.ProductPhoto = _product.Photos.First().PhotoPath;
+        else 
+            _product.ProductPhoto = null;
 
         try {
             _context.SaveChanges();
