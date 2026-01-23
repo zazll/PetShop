@@ -1,6 +1,7 @@
 using Minio;
 using Minio.DataModel.Args;
-using System.Web;
+using Microsoft.Win32;
+using System.IO;
 
 namespace PetShopApp.Services;
 
@@ -74,10 +75,13 @@ public class MinioService
 
     private string GetContentType(string filePath)
     {
-        string contentType = MimeMapping.GetMimeMapping(filePath);
-        if (string.IsNullOrEmpty(contentType))
+        string contentType = "application/octet-stream"; // Default
+        string ext = Path.GetExtension(filePath).ToLowerInvariant();
+        RegistryKey regKey = Registry.ClassesRoot.OpenSubKey(ext);
+
+        if (regKey != null && regKey.GetValue("Content Type") != null)
         {
-            return "application/octet-stream"; // Default if cannot determine
+            contentType = regKey.GetValue("Content Type").ToString();
         }
         return contentType;
     }
