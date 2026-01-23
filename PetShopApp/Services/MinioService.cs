@@ -18,7 +18,7 @@ public class MinioService
     {
         // Initialize MinIO Client
         _client = new MinioClient()
-            .WithEndpoint("45.66.228.138:9001")
+            .WithEndpoint("45.66.228.138:9000")
             .WithCredentials("minioadmin", "DimpYTYT98!")
             .WithSSL(false)
             .Build();
@@ -70,7 +70,7 @@ public class MinioService
 
     public string GetFileUrl(string objectName)
     {
-        return $"http://45.66.228.138:9001/{BucketName}/{objectName}";
+        return $"http://45.66.228.138:9000/{BucketName}/{objectName}";
     }
 
     private string GetContentType(string filePath)
